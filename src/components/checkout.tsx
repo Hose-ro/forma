@@ -1,0 +1,33 @@
+'use client';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Check } from 'lucide-react';
+import { customerSchema, type CheckoutValues } from '@/lib/validation';
+import { api } from '@/lib/api/client';
+import { ApiError, errorMessage } from '@/lib/api/http';
+import { orderSchema } from '@/lib/api/schemas';
+import { useShop } from '@/stores/shop';
+import { FALLBACK_IMAGE, money } from '@/lib/data';
+import { Empty } from './ui';
+const fields: {name:keyof Omit<CheckoutValues,'consent'|'country'>;label:string;auto:string;type?:string}[]=[{name:'firstName',label:'Nombre',auto:'given-name'},{name:'lastName',label:'Apellidos',auto:'family-name'},{name:'email',label:'Correo electrónico',auto:'email',type:'email'},{name:'phone',label:'Teléfono',auto:'tel',type:'tel'},{name:'street',label:'Calle y número',auto:'street-address'},{name:'city',label:'Ciudad',auto:'address-level2'},{name:'state',label:'Estado',auto:'address-level1'},{name:'postalCode',label:'Código postal',auto:'postal-code'}];
+export function Checkout(){const {cart,cartReady,user,refreshCart}=useShop();const router=useRouter();const [error,setError]=useState('');const [placed,setPlaced]=useState(false);
+// One quote and one Idempotency-Key per attempt: retrying after a network failure can never create a second order.
+const attempt=useRef<{quoteId:string;key:string}|null>(null);
+const {register,handleSubmit,reset,formState:{errors,isSubmitting,isDirty}}=useForm<CheckoutValues>({resolver:zodResolver(customerSchema),defaultValues:{country:'México',consent:false}});
+useEffect(()=>{if(user&&!isDirty)reset({country:'México',consent:false,firstName:user.firstName,lastName:user.lastName,email:user.email,phone:user.phone||''})},[user]);// eslint-disable-line react-hooks/exhaustive-deps
+if(!cartReady)return <div className="page skeleton"/>;if(placed)return <div className="page skeleton" aria-label="Confirmando pedido"/>;if(!cart?.items.length)return <div className="page"><Empty title="Primero, encuentra tu objeto."><Link className="button" href="/shop">Explorar colección</Link></Empty></div>;
+async function submit(data:CheckoutValues){setError('');if(!cart)return;try{
+  if(!attempt.current){const quote=await api.post('/checkout/quotes',orderSchema,{cartId:cart.id,customer:{email:data.email,firstName:data.firstName,lastName:data.lastName,phone:data.phone},shippingAddress:{recipientName:`${data.firstName} ${data.lastName}`.trim(),line1:data.street,city:data.city,state:data.state,postalCode:data.postalCode,country:'MX',phone:data.phone}});attempt.current={quoteId:quote.id,key:`checkout-${crypto.randomUUID()}`}}
+  const order=await api.post('/orders',orderSchema,{quoteId:attempt.current.quoteId},{'Idempotency-Key':attempt.current.key});
+  setPlaced(true);void refreshCart().catch(()=>{});router.push(`/checkout/confirmation/${order.id}`);
+}catch(e){
+  // 409/422: stock, prices or the quote changed. Start over with a fresh quote from the current cart.
+  if(e instanceof ApiError&&(e.status===409||e.status===422||e.status===404)){attempt.current=null;await refreshCart();setError('La disponibilidad o los precios cambiaron. Revisa tu bolsa antes de continuar.')}
+  else if(e instanceof ApiError&&e.status===400&&e.fieldErrors.length){attempt.current=null;setError('Revisa los datos del formulario.')}
+  else setError(errorMessage(e,'No pudimos crear tu pedido. Inténtalo de nuevo.'));
+}}
+return <div className="page checkout-page"><div className="page-intro"><p className="eyebrow">Bolsa / Datos / Confirmación</p><h1>Un paso <i>más.</i></h1><p>{user?'Completa tu pedido con tu cuenta.':'Completa tu pedido como invitado.'}</p></div><div className="checkout-layout"><form noValidate onSubmit={handleSubmit(submit)} onChange={()=>{attempt.current=null}}><h2>Tus datos</h2><p className="muted">Tus datos se guardan con el pedido. No se solicitan datos bancarios.</p><div className="form-grid">{fields.map(f=><label key={f.name} className={f.name==='street'?'span-2':''}>{f.label}<input {...register(f.name)} type={f.type||'text'} autoComplete={f.auto} aria-invalid={!!errors[f.name]} aria-describedby={errors[f.name]?`${f.name}-error`:undefined}/>{errors[f.name]&&<span className="error" id={`${f.name}-error`}>{errors[f.name]?.message}</span>}</label>)}<label className="span-2">País<select {...register('country')}><option>México</option></select></label></div><div className="demo-notice"><Check size={18}/><div><strong>Mercado Pago · Modo de pruebas</strong><p>Revisarás el total del pedido antes de continuar al checkout oficial de Mercado Pago. Utiliza únicamente cuentas y medios de pago de prueba. No se enviarán productos.</p></div></div><label className="checkbox-label"><input type="checkbox" {...register('consent')}/> Entiendo que continuaré a un pago de prueba en Mercado Pago.</label>{errors.consent&&<p className="error" role="alert">{errors.consent.message}</p>}{error&&<p role="alert" className="error">{error} <Link href="/cart">Volver a la bolsa</Link></p>}<button className="button full" disabled={isSubmitting||!cart.checkoutReady}>{isSubmitting?'Creando pedido…':'Revisar pedido'} <ArrowRight size={17}/></button>{!cart.checkoutReady&&<p className="error" role="alert">Un artículo de tu bolsa ya no está disponible en esa cantidad. <Link href="/cart">Revisar bolsa</Link></p>}</form><aside className="checkout-summary"><h2>Tu selección</h2>{cart.items.map(line=><div className="order-line" key={line.id}><Image src={line.imageUrl||FALLBACK_IMAGE} alt={line.productName} width={65} height={82}/><div><strong>{line.productName}</strong><p>{line.variantName} · {line.quantity} ud.</p></div><span>{money(line.lineTotal)}</span></div>)}<div className="total-row"><span>Subtotal</span><span>{money(cart.subtotal)}</span></div><div className="total-row"><span>Envío</span><span>Se calcula al confirmar</span></div><div className="total-row grand-total"><strong>Subtotal del pedido</strong><strong>{money(cart.subtotal)} MXN</strong></div><p className="muted">El total definitivo lo calcula el servidor al crear el pedido.</p></aside></div></div>}
