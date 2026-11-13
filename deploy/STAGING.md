@@ -4,12 +4,21 @@ Frontend Next.js en Vercel Hobby, Spring Boot en Render Free y PostgreSQL en Neo
 URLs del proveedor, sin comprar dominio y sin túneles locales. Pagos exclusivamente de prueba.
 No se exportan usuarios, pedidos, cookies ni credenciales administrativas de la base local.
 
+## Recursos creados
+
+- Backend: `https://forma-staging-api.onrender.com`.
+- Frontend reservado: `https://forma-staging-ecru.vercel.app` (comprobar estado del despliegue en Vercel).
+- Neon: proyecto `forma-staging`, base `forma_staging`; migraciones y permisos aplicados.
+- Credenciales: `.env.staging.local`, archivo privado ignorado por Git.
+
 ## 1. Neon
 
 Crea un proyecto gratuito dedicado a FORMA staging, preferentemente en AWS us-west-2
 (cerca del backend Render en Oregon). Usa una conexión **directa**, sin `-pooler`, con
 `sslmode=verify-full`. Configura `DATABASE_URL` en formato JDBC, sin usuario ni contraseña:
-`jdbc:postgresql://HOST/neondb?sslmode=verify-full`.
+`jdbc:postgresql://HOST/forma_staging?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory`.
+La fábrica SSL de Java utiliza el almacén de certificados del JRE, sin desactivar la validación
+de certificado ni de hostname.
 
 Usa el propietario del proyecto como rol de migración y crea **mediante SQL** un login independiente
 `forma_runtime`, sin privilegios de administración ni propiedad de tablas. No lo crees con el flujo
