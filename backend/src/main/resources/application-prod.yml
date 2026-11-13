@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+  flyway:
+    # DDL credentials belong exclusively to Flyway, never to the runtime connection pool.
+    url: ${DATABASE_URL}
+    user: ${DATABASE_MIGRATION_USERNAME}
+    password: ${DATABASE_MIGRATION_PASSWORD}
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+app:
+  cookie-secure: true
+  frontend-origin: ${APP_FRONTEND_ORIGIN}
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

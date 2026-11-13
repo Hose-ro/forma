@@ -15,7 +15,7 @@ export function PaymentAction({orderId}:{orderId:string}) {
     try{
       const p=await api.post('/payments/mercadopago/preference',preferenceSchema,{orderId},{'Idempotency-Key':key.current});
       const url=new URL(p.checkoutUrl);
-      if(url.protocol!=='https:'||url.hostname!=='sandbox.mercadopago.com.mx'||url.port||url.username||url.password||!url.pathname.startsWith('/checkout/'))throw new Error('La URL de pago no es válida.');
+      if(url.protocol!=='https:'||url.hostname!=='www.mercadopago.com.mx'||url.port||url.username||url.password||url.pathname!=='/checkout/v1/redirect'||url.hash)throw new Error('La URL de pago no es válida.');
       setError('Redirigiendo a Mercado Pago…');window.location.assign(url.href);
     }catch(e){setError(errorMessage(e,'No pudimos iniciar el pago. Reintenta desde este mismo pedido.'));setBusy(false);lock.current=false}
   }

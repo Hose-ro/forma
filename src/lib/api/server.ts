@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import 'server-only';
 import type { z } from 'zod';
 import { ApiError, request } from './http';
 import { userSchema } from './schemas';

@@ -19,6 +19,7 @@ export function errorMessage(e: unknown, fallback = 'Algo no salió como esperá
     if (e.status === 0) return 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.';
     if (e.status === 401) return 'Inicia sesión para continuar.';
     if (e.status === 403) return 'No tienes permiso para realizar esta acción.';
+    if (e.status === 429) return 'Demasiados intentos. Espera unos minutos antes de volver a intentarlo.';
     if (e.status >= 500) return 'El servidor no está disponible en este momento.';
     if (e.fieldErrors.length) return 'Revisa los datos del formulario.';
   }

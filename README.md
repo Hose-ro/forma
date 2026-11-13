@@ -1,4 +1,4 @@
-# FORMA. · VELORA
+# FORMA.
 Tienda de demostración: frontend Next.js (este directorio) + backend Spring Boot/PostgreSQL (`backend/`).
 
 ## Ejecutar en local
@@ -15,6 +15,6 @@ Verificación: `npm run typecheck`, `npm run build`. Requiere Node.js 20.9+; la 
 - `/admin` exige sesión con rol ADMIN (comprobado en el servidor); cada operación la autoriza de nuevo el backend.
 
 ## Rutas
-`/`, `/shop` (búsqueda, filtros, orden y paginación por URL), `/product/[slug]`, `/cart`, `/checkout`, `/checkout/confirmation/[id]`, `/account`, `/account/orders/[id]`, `/admin?view=overview|products|orders|suppliers|inventory|settings`, `/policies/*`.
+`/`, `/shop` (búsqueda, filtros, orden y paginación por URL), `/product/[slug]`, `/cart`, `/checkout`, `/checkout/confirmation/[id]`, `/account`, `/account/orders/[id]`, `/admin?view=overview|products|orders|suppliers|inventory|settings|payments`, `/policies/*`.
 
-Sin pagos ni envíos reales: los pedidos quedan pendientes de pago. El directorio de proveedores y el mensaje del footer son datos de demostración/locales.
+Mercado Pago Checkout Pro permanece en modo de pruebas. El backend valida el estado oficial antes de marcar un pedido como pagado; incluye firma de webhooks, conciliación y consulta administrativa de pagos. No hay envíos reales. El directorio de proveedores y el mensaje del footer son datos de demostración/locales.
