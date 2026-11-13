@@ -18,3 +18,7 @@ Verificación: `npm run typecheck`, `npm run build`. Requiere Node.js 20.9+; la 
 `/`, `/shop` (búsqueda, filtros, orden y paginación por URL), `/product/[slug]`, `/cart`, `/checkout`, `/checkout/confirmation/[id]`, `/account`, `/account/orders/[id]`, `/admin?view=overview|products|orders|suppliers|inventory|settings|payments`, `/policies/*`.
 
 Mercado Pago Checkout Pro permanece en modo de pruebas. El backend valida el estado oficial antes de marcar un pedido como pagado; incluye firma de webhooks, conciliación y consulta administrativa de pagos. No hay envíos reales. El directorio de proveedores y el mensaje del footer son datos de demostración/locales.
+
+## Entorno de pruebas estable
+
+Configuración gratuita preparada para Vercel + Render + Neon: [guía de staging](deploy/STAGING.md).

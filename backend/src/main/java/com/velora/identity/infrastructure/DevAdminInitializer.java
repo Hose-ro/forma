@@ -12,9 +12,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Creates a development admin from APP_ADMIN_EMAIL / APP_ADMIN_PASSWORD. Idempotent; dev profile only. */
+/** Creates a development admin from APP_ADMIN_EMAIL / APP_ADMIN_PASSWORD. Idempotent; dev and staging profiles only. */
 @Component
-@Profile("dev")
+@Profile({"dev", "staging"})
 public class DevAdminInitializer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DevAdminInitializer.class);
@@ -44,7 +44,7 @@ public class DevAdminInitializer implements ApplicationRunner {
         if (users.existsByEmailIgnoreCase(email)) {
             return;
         }
-        users.save(new User(email, encoder.encode(password), "Admin", "Velora", null, Role.ADMIN));
+        users.save(new User(email, encoder.encode(password), "Admin", "FORMA", null, Role.ADMIN));
         log.info("Dev admin created");
     }
 }

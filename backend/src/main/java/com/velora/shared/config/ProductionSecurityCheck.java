@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 /** Fail closed when production accidentally uses a privileged or migration database account. */
 @Component
-@Profile("prod")
+@Profile({"prod", "staging"})
 public class ProductionSecurityCheck implements ApplicationRunner {
     private final JdbcTemplate db;
     private final Environment env;
@@ -24,7 +24,7 @@ public class ProductionSecurityCheck implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         if (java.util.Arrays.asList(env.getActiveProfiles()).contains("dev"))
-            throw new IllegalStateException("The dev and prod profiles cannot be combined");
+            throw new IllegalStateException("The dev and hosted profiles cannot be combined");
         String runtimeUser = env.getRequiredProperty("spring.datasource.username");
         if (runtimeUser.equals(env.getRequiredProperty("spring.flyway.user")))
             throw new IllegalStateException("Production requires separate runtime and migration database roles");

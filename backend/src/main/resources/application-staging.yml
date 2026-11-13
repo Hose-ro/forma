@@ -1,0 +1,36 @@
+# Public, persistent test environment. Keep real payment processing disabled.
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 0
+      idle-timeout: 60000
+      max-lifetime: 300000
+  flyway:
+    url: ${DATABASE_URL}
+    user: ${DATABASE_MIGRATION_USERNAME}
+    password: ${DATABASE_MIGRATION_PASSWORD}
+    locations: classpath:db/migration,classpath:db/dev
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+  tomcat:
+    threads:
+      max: 30
+      min-spare: 2
+app:
+  cookie-secure: true
+  frontend-origin: ${APP_FRONTEND_ORIGIN}
+  payments:
+    environment: test
+    reconciliation-delay: ${PAYMENTS_RECONCILIATION_DELAY:600000}
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
