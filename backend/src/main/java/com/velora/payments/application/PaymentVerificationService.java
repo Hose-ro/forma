@@ -35,7 +35,7 @@ public class PaymentVerificationService {
             String providerStatus=resource.path("status").asText();
             String version=resource.path("date_last_updated").asText();
             // All persisted payloads are explicit allowlists with no customer/card data.
-            if (!verified(resource,payment,config.collectorId(),testAccounts) || !providerId.matches("[0-9]{1,100}") || providerStatus.length()>50) {
+            if (!verified(resource,payment,config.collectorId(),testAccounts) || (config.production() && !testAccounts) || !providerId.matches("[0-9]{1,100}") || providerStatus.length()>50) {
                 payments.event(reference,null,"RESOURCE_MISMATCH","{}","REVIEW");return;
             }
             Instant updated;

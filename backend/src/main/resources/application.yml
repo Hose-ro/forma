@@ -69,7 +69,17 @@ app:
   currency: MXN
   checkout:
     quote-ttl: 30m
-    shipping-flat: 0
+    shipping-flat: ${APP_SHIPPING_FLAT:0}
+    shipping-free-from: ${APP_SHIPPING_FREE_FROM:}
+    shipping-zones: ${APP_SHIPPING_ZONES:}
+    shipping-only-zones: ${APP_SHIPPING_ONLY_ZONES:false}
+    delivery-estimate: ${APP_SHIPPING_DELIVERY_ESTIMATE:3 a 7 días hábiles}
+  store-name: ${APP_STORE_NAME:FORMA.}
+  mail:
+    # Emails are sent only when SPRING_MAIL_HOST (+ port/username/password) is set.
+    from: ${APP_MAIL_FROM:}
+    notify: ${APP_ORDERS_NOTIFY_EMAIL:}
+    poll-delay: ${APP_MAIL_POLL_DELAY:60000}
   admin:
     email: ${APP_ADMIN_EMAIL:}
     password: ${APP_ADMIN_PASSWORD:}

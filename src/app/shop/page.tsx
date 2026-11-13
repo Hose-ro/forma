@@ -1,6 +1,8 @@
 import { Catalog } from '@/components/catalog';
 import { catalogRepository } from '@/lib/catalog';
-export const metadata={title:'La colección'};
+import { pageMetadata } from '@/lib/seo';
+// Filtered and paginated URLs share the canonical /shop.
+export const metadata=pageMetadata({title:'La colección',description:'Explora la colección completa de FORMA.: audio, living y accesorios con carácter. Filtra por categoría, precio y disponibilidad.',path:'/shop'});
 type Search=Promise<Record<string,string|string[]|undefined>>;
 export default async function Page({searchParams}:{searchParams:Search}){
   const sp=await searchParams;const one=(key:string)=>{const v=sp[key];return (Array.isArray(v)?v[0]:v)||''};

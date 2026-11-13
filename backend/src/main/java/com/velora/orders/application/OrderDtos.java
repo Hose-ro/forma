@@ -31,11 +31,13 @@ public final class OrderDtos {
                             CustomerView customer, AddressView shippingAddress, String currency,
                             List<OrderItemView> items, BigDecimal subtotal, BigDecimal shippingTotal,
                             BigDecimal total, Instant quoteExpiresAt, Instant placedAt, Instant cancelledAt,
-                            Instant createdAt, List<OrderEventView> events) {
+                            Instant createdAt, List<OrderEventView> events, String fulfillmentStatus,
+                            String carrier, String trackingNumber, Instant shippedAt) {
     }
 
     public record OrderSummaryView(UUID id, String orderNumber, OrderStatus status, String email, String customerName,
                                    String currency,
-                                   BigDecimal total, int itemCount, Instant placedAt, Instant createdAt) {
+                                   BigDecimal total, int itemCount, Instant placedAt, Instant createdAt,
+                                   String fulfillmentStatus) {
     }
 }

@@ -1,0 +1,80 @@
+# Production API. Create it as a SEPARATE Render Blueprint (Blueprint path: deploy/render.production.yaml)
+# so it never shares credentials, database or Mercado Pago account with staging (render.yaml).
+services:
+  - type: web
+    name: forma-api
+    runtime: docker
+    plan: starter # an always-on plan: free instances sleep and delay Mercado Pago webhooks
+    region: oregon
+    branch: main
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    autoDeployTrigger: "off" # deploy production manually after staging is verified
+    healthCheckPath: /api/v1/categories
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SERVER_ADDRESS
+        value: 0.0.0.0
+      - key: APP_COOKIE_SECURE
+        value: "true"
+      - key: APP_SESSION_SECRET
+        generateValue: true
+      # First start only: creates the admin. Delete APP_ADMIN_PASSWORD afterwards.
+      - key: APP_ADMIN_EMAIL
+        sync: false
+      - key: APP_ADMIN_PASSWORD
+        sync: false
+      # Production database (its own Neon project). Runtime and migration roles must differ.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_USERNAME
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+      - key: DATABASE_MIGRATION_USERNAME
+        sync: false
+      - key: DATABASE_MIGRATION_PASSWORD
+        sync: false
+      # Public URLs (https://tudominio.com and https://api.tudominio.com)
+      - key: APP_FRONTEND_ORIGIN
+        sync: false
+      - key: APP_PUBLIC_FRONTEND_URL
+        sync: false
+      - key: APP_PUBLIC_BACKEND_URL
+        sync: false
+      # Mercado Pago live credentials of the real seller
+      - key: MERCADOPAGO_ENVIRONMENT
+        value: production
+      - key: MERCADOPAGO_ACCESS_TOKEN
+        sync: false
+      - key: MERCADOPAGO_COLLECTOR_ID
+        sync: false
+      - key: MERCADOPAGO_WEBHOOK_SECRET
+        sync: false
+      # Shipping
+      - key: APP_SHIPPING_FLAT
+        sync: false
+      - key: APP_SHIPPING_FREE_FROM
+        sync: false
+      - key: APP_SHIPPING_ZONES
+        sync: false
+      - key: APP_SHIPPING_ONLY_ZONES
+        value: "false"
+      - key: APP_SHIPPING_DELIVERY_ESTIMATE
+        value: 3 a 7 días hábiles
+      # Transactional email (SMTP of your provider, sender on your domain)
+      - key: APP_STORE_NAME
+        sync: false
+      - key: SPRING_MAIL_HOST
+        sync: false
+      - key: SPRING_MAIL_PORT
+        value: "587"
+      - key: SPRING_MAIL_USERNAME
+        sync: false
+      - key: SPRING_MAIL_PASSWORD
+        sync: false
+      - key: APP_MAIL_FROM
+        sync: false
+      - key: APP_ORDERS_NOTIFY_EMAIL
+        sync: false

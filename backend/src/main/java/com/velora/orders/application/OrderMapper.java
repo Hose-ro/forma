@@ -28,13 +28,13 @@ public final class OrderMapper {
                 new CustomerView(o.getEmail(), o.getCustomerFirstName(), o.getCustomerLastName(), o.getCustomerPhone()),
                 address, o.getCurrency(), items, display(o.getSubtotal()), display(o.getShippingTotal()),
                 display(o.getTotal()), o.getQuoteExpiresAt(), o.getPlacedAt(), o.getCancelledAt(), o.getCreatedAt(),
-                events);
+                events, o.getFulfillmentStatus(), o.getCarrier(), o.getTrackingNumber(), o.getShippedAt());
     }
 
     public static OrderSummaryView summary(Order o) {
         return new OrderSummaryView(o.getId(), o.getOrderNumber(), o.getStatus(), o.getEmail(),
                 o.getCustomerFirstName() + " " + o.getCustomerLastName(), o.getCurrency(),
                 display(o.getTotal()), o.getItems().stream().mapToInt(OrderItem::getQuantity).sum(), o.getPlacedAt(),
-                o.getCreatedAt());
+                o.getCreatedAt(), o.getFulfillmentStatus());
     }
 }

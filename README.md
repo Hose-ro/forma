@@ -22,3 +22,7 @@ Mercado Pago Checkout Pro permanece en modo de pruebas. El backend valida el est
 ## Entorno de pruebas estable
 
 Configuración gratuita preparada para Vercel + Render + Neon: [guía de staging](deploy/STAGING.md).
+
+## Producción
+
+Pasos para abrir ventas reales (datos del negocio, envíos, Mercado Pago, dominio y correo): [deploy/PRODUCTION.md](deploy/PRODUCTION.md).

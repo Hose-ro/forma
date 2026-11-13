@@ -93,6 +93,15 @@ public class AdminService {
         return view;
     }
 
+    @Transactional
+    public OrderView fulfillOrder(UUID id, String status, String carrier, String trackingNumber) {
+        OrderView view = orderAdmin.fulfill(id, status, carrier, trackingNumber);
+        Map<String, Object> details = new HashMap<>();
+        details.put("fulfillmentStatus", status);
+        record("ORDER_FULFILLMENT", "order", id, details);
+        return view;
+    }
+
     /** Counts only. No revenue figures: no real payments exist. */
     @Transactional(readOnly = true)
     public Dashboard dashboard() {

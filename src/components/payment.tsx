@@ -1,4 +1,5 @@
  'use client';
+import { LIVE } from '@/lib/business';
 import Link from 'next/link';
 import {useEffect,useRef,useState} from 'react';
 import type {z} from 'zod';
@@ -19,7 +20,7 @@ export function PaymentAction({orderId}:{orderId:string}) {
       setError('Redirigiendo a Mercado Pago…');window.location.assign(url.href);
     }catch(e){setError(errorMessage(e,'No pudimos iniciar el pago. Reintenta desde este mismo pedido.'));setBusy(false);lock.current=false}
   }
-  return <section className="address-block"><h3>Método de pago</h3><label className="checkbox-label"><input type="radio" checked readOnly name="paymentMethod"/> Mercado Pago · Checkout Pro (pruebas)</label><p>Revisa el resumen y continúa al checkout oficial para realizar un pago de prueba.</p><button type="button" className="button" disabled={busy} onClick={()=>void pay()}>{busy?'Preparando pago…':'Pagar con Mercado Pago'}</button>{error&&<p role={busy?'status':'alert'} className={busy?'muted':'error'}>{error}</p>}</section>;
+  return <section className="address-block"><h3>Método de pago</h3><label className="checkbox-label"><input type="radio" checked readOnly name="paymentMethod"/> Mercado Pago · Checkout Pro{LIVE?'':' (pruebas)'}</label><p>{LIVE?'Revisa el resumen y continúa al checkout oficial de Mercado Pago para pagar con tarjeta, transferencia o efectivo.':'Revisa el resumen y continúa al checkout oficial para realizar un pago de prueba.'}</p><button type="button" className="button" disabled={busy} onClick={()=>void pay()}>{busy?'Preparando pago…':'Pagar con Mercado Pago'}</button>{error&&<p role={busy?'status':'alert'} className={busy?'muted':'error'}>{error}</p>}</section>;
 }
 const labels:Record<z.infer<typeof paymentSchema>['status'],string>={CREATED:'Estamos verificando tu pago',PENDING:'Pago pendiente',IN_PROCESS:'Estamos verificando tu pago',APPROVED:'Pago confirmado',REJECTED:'Pago rechazado',CANCELLED:'Pago cancelado',REFUNDED:'Pago reembolsado',PARTIALLY_REFUNDED:'Pago con reembolso parcial',UNKNOWN:'Estamos verificando tu pago'};
 export function VerifiedPayment({orderId,knownStatus,onVerified}:{orderId:string;knownStatus:string;onVerified:()=>void}) {
@@ -34,5 +35,5 @@ export function VerifiedPayment({orderId,knownStatus,onVerified}:{orderId:string
     }
     void read();return()=>{active=false;clearTimeout(timer)};
   },[orderId,round,knownStatus,onVerified]);
-  return <section className="address-block" aria-live="polite"><h2>{payment?labels[payment.status]:'Estamos verificando tu pago'}</h2><p>{payment?.status==='APPROVED'?'El backend confirmó tu pago de prueba con Mercado Pago. No se enviarán productos.':'El estado se confirma con Mercado Pago. Puedes volver a consultar tu pedido más tarde.'}</p>{error&&<p className="error" role="alert">{error}</p>}<button className="text-link" onClick={()=>setRound(n=>n+1)}>Actualizar estado</button> <Link href={`/account/orders/${encodeURIComponent(orderId)}`}>Consultar pedido</Link></section>;
+  return <section className="address-block" aria-live="polite"><h2>{payment?labels[payment.status]:'Estamos verificando tu pago'}</h2><p>{payment?.status==='APPROVED'?(LIVE?'Confirmamos tu pago con Mercado Pago. Te enviaremos un correo con el resumen y otro cuando tu pedido salga a reparto.':'El backend confirmó tu pago de prueba con Mercado Pago. No se enviarán productos.'):'El estado se confirma con Mercado Pago. Puedes volver a consultar tu pedido más tarde.'}</p>{error&&<p className="error" role="alert">{error}</p>}<button className="text-link" onClick={()=>setRound(n=>n+1)}>Actualizar estado</button> <Link href={`/account/orders/${encodeURIComponent(orderId)}`}>Consultar pedido</Link></section>;
 }

@@ -26,7 +26,7 @@ public class MercadoPagoClient {
         requireTestSeller();
         String base = config.frontendUrl().replaceAll("/$", "");
         Map<String,Object> body = Map.of(
-            "items", List.of(Map.of("id",p.orderId().toString(),"title","Pedido FORMA", "quantity",1,
+            "items", List.of(Map.of("id",p.orderId().toString(),"title","Pedido "+p.orderId().toString().substring(0,8), "quantity",1,
                 "currency_id",p.currency(),"unit_price",p.amount())),
             "external_reference", p.id().toString(),
             "back_urls", Map.of("success",base+"/checkout/success?orderId="+p.orderId(),
@@ -49,7 +49,12 @@ public class MercadoPagoClient {
         config.requireConfigured();
         if (java.time.Instant.now().isBefore(sellerVerifiedUntil)) return;
         JsonNode seller = request("GET", URI.create("https://api.mercadolibre.com/users/me"), null);
-        if (!testSellerMatches(seller, config.collectorId())) throw new ProviderException();
+        // Never mix environments: test mode demands a test seller, production demands a real one.
+        boolean ok = config.production()
+                ? config.collectorId().equals(seller.path("id").asText()) && "MLM".equals(seller.path("site_id").asText())
+                        && !testSellerMatches(seller, config.collectorId())
+                : testSellerMatches(seller, config.collectorId());
+        if (!ok) throw new ProviderException();
         sellerVerifiedUntil = java.time.Instant.now().plusSeconds(300);
     }
     public static boolean testSellerMatches(JsonNode seller, String collectorId) {
@@ -63,6 +68,8 @@ public class MercadoPagoClient {
     public boolean testAccountsVerified(JsonNode payment) {
         requireTestSeller();
         if (!config.collectorId().equals(payment.path("collector_id").asText())) return false;
+        // Production accepts only real (live_mode) payments collected by the verified seller.
+        if (config.production()) return payment.path("live_mode").asBoolean(false);
         JsonNode payer=payment.path("payer");
         String buyerId=payer.path("id").asText();
         if (!buyerId.matches("[0-9]{1,30}") || buyerId.equals(config.collectorId())) return false;

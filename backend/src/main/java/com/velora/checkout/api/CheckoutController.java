@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Tag(name = "Checkout", description = "Demo checkout: no payment is collected and orders are never marked as paid")
+@Tag(name = "Checkout", description = "Quotes and order placement; payment is confirmed only by the verified provider integration")
 public class CheckoutController {
 
     private final CheckoutService checkout;

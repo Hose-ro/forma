@@ -40,6 +40,11 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Admin")
 public class AdminController {
 
+    public record FulfillmentRequest(
+            @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Pattern(regexp = "PREPARING|SHIPPED|DELIVERED") String status,
+            @Size(max = 80) String carrier, @Size(max = 120) String trackingNumber) {
+    }
+
     public record CancelRequest(@Size(max = 500) String note) {
     }
 
@@ -120,6 +125,12 @@ public class AdminController {
     @GetMapping("/orders/{id}")
     public OrderView order(@PathVariable UUID id) {
         return orders.adminGet(id);
+    }
+
+    @Operation(summary = "Update logistics of a paid order: PREPARING, SHIPPED (carrier + tracking) or DELIVERED")
+    @PostMapping("/orders/{id}/fulfillment")
+    public OrderView fulfillOrder(@PathVariable UUID id, @Valid @RequestBody FulfillmentRequest req) {
+        return admin.fulfillOrder(id, req.status(), req.carrier(), req.trackingNumber());
     }
 
     @Operation(summary = "Cancel a quote or pending order (restocks pending orders)")

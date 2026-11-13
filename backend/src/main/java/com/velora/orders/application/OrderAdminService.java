@@ -31,6 +31,13 @@ public class OrderAdminService {
         this.payments = payments;
     }
 
+    @Transactional
+    public OrderView fulfill(UUID id, String status, String carrier, String trackingNumber) {
+        Order order = orders.lockById(id).orElseThrow(() -> new NotFoundException("Order not found"));
+        order.fulfill(status, carrier, trackingNumber, CurrentUser.id().orElse(null), Instant.now());
+        return OrderMapper.view(orders.saveAndFlush(order), true);
+    }
+
     /** Cancels a quote or pending order; reserved stock of a PENDING_PAYMENT order is returned. */
     @Transactional
     public OrderView cancel(UUID id, String note) {

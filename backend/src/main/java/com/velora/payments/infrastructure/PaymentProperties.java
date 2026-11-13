@@ -8,12 +8,13 @@ import com.velora.shared.domain.ConflictException;
 public record PaymentProperties(String accessToken, String webhookSecret, String environment,
         String collectorId, String frontendUrl, String backendUrl) {
     public void requireConfigured() {
-        // Production is deliberately unavailable in this integration.
-        if (!"test".equals(environment) || accessToken == null || accessToken.isBlank()
+        if (!("test".equals(environment) || production()) || accessToken == null || accessToken.isBlank()
                 || webhookSecret == null || webhookSecret.isBlank() || collectorId == null || !collectorId.matches("[0-9]+"))
-            throw new ConflictException("Mercado Pago test configuration is incomplete or production is disabled");
+            throw new ConflictException("Mercado Pago configuration is incomplete");
         publicHttps(frontendUrl); publicHttps(backendUrl);
     }
+    /** Real money: live seller credentials (MERCADOPAGO_ENVIRONMENT=production). */
+    public boolean production() { return "production".equals(environment); }
     private void publicHttps(String value) {
         try {
             URI u = URI.create(value);

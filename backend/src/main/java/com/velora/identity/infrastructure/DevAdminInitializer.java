@@ -12,9 +12,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Creates a development admin from APP_ADMIN_EMAIL / APP_ADMIN_PASSWORD. Idempotent; dev and staging profiles only. */
+/** Creates a development admin from APP_ADMIN_EMAIL / APP_ADMIN_PASSWORD. Idempotent. In production it bootstraps the first admin: remove APP_ADMIN_PASSWORD from the host after the first start. */
 @Component
-@Profile({"dev", "staging"})
+@Profile({"dev", "staging", "prod"})
 public class DevAdminInitializer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DevAdminInitializer.class);

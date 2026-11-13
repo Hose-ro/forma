@@ -58,10 +58,11 @@ export const orderSchema = z.object({
   })),
   subtotal: z.number(), shippingTotal: z.number(), total: z.number(), quoteExpiresAt: z.string(),
   placedAt: z.string().nullish(), cancelledAt: z.string().nullish(), createdAt: z.string(),
+  fulfillmentStatus: z.string().nullish(), carrier: z.string().nullish(), trackingNumber: z.string().nullish(), shippedAt: z.string().nullish(),
 });
 export const orderSummarySchema = z.object({
   id: z.string(), orderNumber: z.string().nullish(), status: orderStatus, email: z.string(), customerName: z.string(),
-  currency: z.string(), total: z.number(), itemCount: z.number(), placedAt: z.string().nullish(), createdAt: z.string(),
+  currency: z.string(), total: z.number(), itemCount: z.number(), placedAt: z.string().nullish(), createdAt: z.string(), fulfillmentStatus: z.string().nullish(),
 });
 export const orderPageSchema = page(orderSummarySchema);
 

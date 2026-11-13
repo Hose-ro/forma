@@ -6,6 +6,13 @@ if (!['http:', 'https:'].includes(backend.protocol) || backend.username || backe
     || backend.search || backend.hash || backend.pathname !== '/') {
   throw new Error('BACKEND_URL must be an HTTP(S) origin without credentials');
 }
+// Session, CSRF and checkout data cross this hop, so production builds may only proxy over TLS.
+// Loopback stays allowed for local `next build && next start` against a backend on the same machine.
+const loopbackHosts = ['localhost', '127.0.0.1', '[::1]'];
+if (process.env.NODE_ENV === 'production' && backend.protocol !== 'https:'
+    && !loopbackHosts.includes(backend.hostname)) {
+  throw new Error('BACKEND_URL must use https:// in production (only loopback hosts may use http://)');
+}
 const imageHosts = (process.env.IMAGE_ALLOWED_HOSTS || 'images.unsplash.com').split(',').map(s => s.trim()).filter(Boolean);
 if (imageHosts.some(host => !/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/i.test(host))) {
   throw new Error('IMAGE_ALLOWED_HOSTS must contain explicit DNS hostnames');

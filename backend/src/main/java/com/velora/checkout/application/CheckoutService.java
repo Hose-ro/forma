@@ -86,8 +86,10 @@ public class CheckoutService {
             }
             return new OrderPricing.Line(v.unitPrice(), item.getQuantity());
         }).toList();
-        OrderPricing.Breakdown price = OrderPricing.compute(lines,
-                Money.of(props.checkout().shippingFlat(), cart.getCurrency()));
+        var goodsTotal = OrderPricing.compute(lines, Money.zero(cart.getCurrency())).subtotal().rounded();
+        var shippingRate = props.checkout().shippingFor(req.shippingAddress().state(), goodsTotal)
+                .orElseThrow(() -> new BusinessRuleException("We do not deliver to that state"));
+        OrderPricing.Breakdown price = OrderPricing.compute(lines, Money.of(shippingRate, cart.getCurrency()));
 
         // Guests: the order is bound to the browser's guest token. Users: access goes through the session,
         // so the token is a random secret nobody holds.

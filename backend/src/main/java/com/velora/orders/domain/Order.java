@@ -78,6 +78,15 @@ public class Order {
     private Instant placedAt;
     @Column(name = "cancelled_at")
     private Instant cancelledAt;
+    @Column(name = "fulfillment_status", nullable = false, length = 20)
+    private String fulfillmentStatus = "UNFULFILLED";
+    private String carrier;
+    @Column(name = "tracking_number")
+    private String trackingNumber;
+    @Column(name = "shipped_at")
+    private Instant shippedAt;
+    @Column(name = "delivered_at")
+    private Instant deliveredAt;
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<OrderItem> items = new ArrayList<>();
@@ -204,6 +213,19 @@ public class Order {
         transition(OrderStatus.CANCELLED, "CANCELLED", note, actor, now);
     }
 
+    /** Logistics state. Only a paid order can be prepared, shipped or delivered. */
+    public void fulfill(String next, String carrier, String trackingNumber, UUID actor, Instant now) {
+        if (status != OrderStatus.PAID) throw new ConflictException("Only paid orders can be fulfilled");
+        if (!List.of("PREPARING", "SHIPPED", "DELIVERED").contains(next))
+            throw new ConflictException("Unknown fulfillment status");
+        this.fulfillmentStatus = next;
+        if (carrier != null && !carrier.isBlank()) this.carrier = carrier.trim();
+        if (trackingNumber != null && !trackingNumber.isBlank()) this.trackingNumber = trackingNumber.trim();
+        if (!"PREPARING".equals(next) && shippedAt == null) this.shippedAt = now;
+        if ("DELIVERED".equals(next) && deliveredAt == null) this.deliveredAt = now;
+        events.add(new OrderEvent(this, "FULFILLMENT_" + next, status, status, this.trackingNumber, actor, now));
+    }
+
     private void transition(OrderStatus to, String type, String note, UUID actor, Instant now) {
         events.add(new OrderEvent(this, type, status, to, note, actor, now));
         this.status = to;
@@ -228,6 +250,10 @@ public class Order {
     }
 
     public UUID getId() { return id; }
+    public String getFulfillmentStatus() { return fulfillmentStatus; }
+    public String getCarrier() { return carrier; }
+    public String getTrackingNumber() { return trackingNumber; }
+    public Instant getShippedAt() { return shippedAt; }
     public String getOrderNumber() { return orderNumber; }
     public UUID getUserId() { return userId; }
     public UUID getCartId() { return cartId; }
