@@ -12,11 +12,8 @@ type Policy = { title: string; description: string; sections: Section[] };
 const B = BUSINESS;
 const contact = `${B.email}${B.phone ? ` o al ${B.phone}` : ''} (${B.hours})`;
 
-// Demo copy, shown until NEXT_PUBLIC_STORE_MODE=live.
-const demo: Record<string, Policy> = {
-  shipping: { title: 'Envíos y devoluciones', description: 'Plazos, costos de envío y devoluciones ilustrativos de FORMA., una tienda de demostración sin compras ni entregas reales.', sections: [{ body: ['Esta tienda es una demostración. No se procesan compras, envíos ni devoluciones reales.', 'Los plazos y costos de envío que aparecen en el checkout son ejemplos. No constituyen una oferta comercial.', 'Como política ilustrativa, una devolución podría solicitarse dentro de 30 días. No aplica a ningún producto real.'] }] },
-  terms: { title: 'Términos de uso', description: 'Condiciones de uso de FORMA.: un proyecto de demostración con productos y precios ficticios, sin cobros ni entregas.', sections: [{ body: ['FORMA. es un proyecto de demostración. Los productos, precios, proveedores e inventarios son ficticios.', 'Crear un pedido no constituye una compra ni genera un cargo real. Los pagos funcionan únicamente en modo de prueba y no se entregan productos.', 'Fotografías ilustrativas obtenidas de Unsplash. No representan un catálogo comercial real ni garantizan las características de los objetos mostrados.'] }] },
-};
+// Shown above the real texts until NEXT_PUBLIC_STORE_MODE=live.
+const TEST_NOTICE: Section = { body: ['Tienda en modo de pruebas: por ahora no se procesan compras ni envíos reales. Estas condiciones son las que aplicarán al abrir ventas.'] };
 
 function shippingCosts(rules: ShippingRules | null): string[] {
   if (!rules) return ['El costo de envío se calcula según el estado de destino y se muestra en el checkout antes de pagar.'];
@@ -97,11 +94,11 @@ function live(rules: ShippingRules | null): Record<string, Policy> {
 }
 
 async function policy(slug: string): Promise<Policy | undefined> {
-  if (!LIVE) return demo[slug];
   if (slug !== 'shipping' && slug !== 'terms') return undefined;
   const rules = slug === 'shipping' ? await serverGet('/checkout/shipping', shippingRulesSchema).catch(() => null) : null;
-  return live(rules)[slug];
+  const p = live(rules)[slug];
+  return LIVE ? p : { ...p, sections: [TEST_NOTICE, ...p.sections] };
 }
 
 export async function generateMetadata({params}:{params:Promise<{slug:string}>}):Promise<Metadata>{const {slug}=await params;const p=await policy(slug);return p?pageMetadata({title:p.title,description:p.description,path:`/policies/${slug}`}):{}}
-export default async function Page({params}:{params:Promise<{slug:string}>}){const p=await policy((await params).slug);if(!p)notFound();return <article className="page policy-page"><p className="eyebrow">{LIVE?'Información para tu compra':'Información de la demostración'}</p><h1>{p.title}</h1>{p.sections.map((s,i)=><section key={i}>{s.heading&&<h2>{s.heading}</h2>}{s.body.map(t=><p key={t}>{t}</p>)}</section>)}</article>}
+export default async function Page({params}:{params:Promise<{slug:string}>}){const p=await policy((await params).slug);if(!p)notFound();return <article className="page policy-page"><p className="eyebrow">Información para tu compra</p><h1>{p.title}</h1>{p.sections.map((s,i)=><section key={i}>{s.heading&&<h2>{s.heading}</h2>}{s.body.map(t=><p key={t}>{t}</p>)}</section>)}</article>}
