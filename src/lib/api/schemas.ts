@@ -94,5 +94,7 @@ export const paymentSchema = z.object({
   id:z.string(),orderId:z.string(),provider:z.string(),status:z.enum(['CREATED','PENDING','IN_PROCESS','APPROVED','REJECTED','CANCELLED','REFUNDED','PARTIALLY_REFUNDED','UNKNOWN']),
   amount:z.number(),currency:z.string(),providerPaymentId:z.string().nullish(),providerPreferenceId:z.string().nullish(),createdAt:z.string(),approvedAt:z.string().nullish(),failureReason:z.string().nullish(),
 });
-export const adminPaymentsSchema = z.array(z.object({id:z.string(),order_id:z.string(),order_number:z.string(),provider:z.string(),status:z.string(),amount:z.number(),currency:z.string(),created_at:z.string(),provider_payment_id:z.string().nullish()}));
-export const adminPaymentSchema = z.object({payment:paymentSchema,events:z.array(z.object({event_type:z.string(),processing_status:z.string(),received_at:z.string(),payload:z.string()}))});
+export const adminPaymentsSchema = z.array(z.object({id:z.string(),order_id:z.string(),order_number:z.string(),provider:z.string(),status:z.string(),amount:z.number(),currency:z.string(),created_at:z.string(),provider_payment_id:z.string().nullish(),checkout_closed_at:z.string().nullish()}));
+export const adminPaymentSchema = z.object({payment:paymentSchema,
+  attempts:z.array(z.object({id:z.string(),provider:z.string(),status:z.string(),amount:z.number(),currency:z.string(),created_at:z.string(),provider_payment_id:z.string().nullish(),provider_preference_id:z.string().nullish(),checkout_closed_at:z.string().nullish(),close_reason:z.enum(['SWITCH','ORDER']).nullish(),provider_closed_at:z.string().nullish(),failure_reason:z.string().nullish()})).default([]),
+  events:z.array(z.object({provider:z.string().nullish(),event_type:z.string(),processing_status:z.string(),received_at:z.string(),payload:z.string()}))});

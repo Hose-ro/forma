@@ -60,6 +60,6 @@ public class PaymentController {
     @GetMapping("/api/v1/admin/payments/orders/{orderId}")
     public Map<String,Object> detail(@PathVariable UUID orderId) {
         Payment p=service.get(orderId,null);
-        return Map.of("payment",p,"events",payments.events(p.id()),"attempts",payments.allByOrder(orderId));
+        return Map.of("payment",p,"events",payments.orderEvents(orderId),"attempts",payments.attempts(orderId));
     }
 }

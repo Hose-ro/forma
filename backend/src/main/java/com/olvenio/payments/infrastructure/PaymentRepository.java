@@ -61,6 +61,14 @@ public class PaymentRepository {
         return Boolean.TRUE.equals(db.queryForObject("select exists(select 1 from payment_attempts a join payments p on p.id=a.payment_id where a.idempotency_key=? and p.order_id<>?)",Boolean.class,key,order));
     }
     public List<Map<String,Object>> list(int page) { return db.queryForList("select p.id,p.order_id,p.provider,p.status,p.amount,p.currency,p.created_at,p.provider_payment_id,p.checkout_closed_at,o.order_number from payments p join orders o on o.id=p.order_id order by p.created_at desc,p.id limit 50 offset ?",page*50); }
+    /** Admin view of every checkout attempt of an order, oldest first. */
+    public List<Map<String,Object>> attempts(UUID order) {
+        return db.queryForList("select id,provider,status,amount,currency,created_at,provider_payment_id,provider_preference_id,checkout_closed_at,close_reason,provider_closed_at,failure_reason from payments where order_id=? order by created_at,id",order);
+    }
+    /** Verified events of all attempts of an order, newest first. */
+    public List<Map<String,Object>> orderEvents(UUID order) {
+        return db.queryForList("select p.provider,e.event_type,e.processing_status,e.received_at,e.processed_at,e.payload::text as payload from payment_events e join payments p on p.id=e.payment_id where p.order_id=? order by e.received_at desc limit 200",order);
+    }
     public List<Map<String,Object>> events(UUID id) { return db.queryForList("select event_type,processing_status,received_at,processed_at,payload::text as payload from payment_events where payment_id=? order by received_at desc limit 100",id); }
     public void event(UUID payment,String key,String type,String payload,String status) {
         db.update("insert into payment_events(id,payment_id,provider_event_id,event_type,payload,processing_status,processed_at) values (?,?,?,?,?::jsonb,?,now()) on conflict(provider_event_id) do nothing",UUID.randomUUID(),payment,key,type,payload,status);
