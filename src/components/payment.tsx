@@ -5,7 +5,7 @@ import {useEffect,useRef,useState} from 'react';
 import type {z} from 'zod';
 import {api} from '@/lib/api/client';
 import {ApiError,errorMessage} from '@/lib/api/http';
-import {checkoutSessionSchema,paymentMethodsSchema,paymentSchema} from '@/lib/api/schemas';
+import {checkoutSessionSchema,paymentMethodsSchema,paymentSchema,preferenceSchema} from '@/lib/api/schemas';
 
 type Provider=z.infer<typeof checkoutSessionSchema>['provider'];
 const METHODS:Record<Provider,{name:string;detail:string}>={
@@ -30,21 +30,29 @@ function trustedCheckout(provider:Provider,href:string){
 
 export function PaymentAction({orderId}:{orderId:string}) {
   const [methods,setMethods]=useState<Provider[]|null>(null);const [choice,setChoice]=useState<Provider|null>(null);
-  const [busy,setBusy]=useState(false);const [error,setError]=useState('');
+  const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [round,setRound]=useState(0);
+  // An API that predates method selection (e.g. the frontend deployed first) only offers Mercado Pago.
+  const [legacy,setLegacy]=useState(false);
   const lock=useRef(false);
   // One key per method: retrying keeps the same checkout; choosing another method opens a new one.
   const keys=useRef<Partial<Record<Provider,string>>>({});
   useEffect(()=>{
-    let active=true;
-    api.get('/payments/methods',paymentMethodsSchema).then(list=>{if(!active)return;const p=list.map(m=>m.provider);setMethods(p);setChoice(c=>c??p[0]??null)})
-      .catch(e=>{if(active){setMethods([]);setError(errorMessage(e,'No pudimos cargar los métodos de pago. Recarga la página.'))}});
+    let active=true;setError('');
+    api.get('/payments/methods',paymentMethodsSchema).then(list=>{if(!active)return;const p=list.map(m=>m.provider);setLegacy(false);setMethods(p);setChoice(c=>c&&p.includes(c)?c:p[0]??null)})
+      .catch(e=>{
+        if(!active)return;
+        if(e instanceof ApiError&&e.status===404){setLegacy(true);setMethods(['MERCADO_PAGO']);setChoice('MERCADO_PAGO');return}
+        setMethods([]);setError(errorMessage(e,'No pudimos cargar los métodos de pago.'));
+      });
     return()=>{active=false};
-  },[]);
+  },[round]);
   async function pay(){
     if(lock.current||!choice)return;lock.current=true;setBusy(true);setError('');
     const key=keys.current[choice]??=`payment-${crypto.randomUUID()}`;
     try{
-      const p=await api.post('/payments/checkout',checkoutSessionSchema,{orderId,provider:choice},{'Idempotency-Key':key});
+      const p=legacy
+        ?{...await api.post('/payments/mercadopago/preference',preferenceSchema,{orderId},{'Idempotency-Key':key}),provider:'MERCADO_PAGO' as const}
+        :await api.post('/payments/checkout',checkoutSessionSchema,{orderId,provider:choice},{'Idempotency-Key':key});
       if(p.provider!==choice||!trustedCheckout(choice,p.checkoutUrl))throw new Error('La URL de pago no es válida.');
       setError(`Redirigiendo a ${METHODS[choice].name}…`);window.location.assign(p.checkoutUrl);
     }catch(e){setError(errorMessage(e,'No pudimos iniciar el pago. Reintenta desde este mismo pedido.'));setBusy(false);lock.current=false}
@@ -53,9 +61,10 @@ export function PaymentAction({orderId}:{orderId:string}) {
   return <section className="address-block"><h3>Método de pago</h3>
     {methods.length===0&&!error&&<p>Los pagos en línea no están disponibles por ahora. Intenta más tarde.</p>}
     <div role="radiogroup" aria-label="Método de pago">{methods.map(m=><label key={m} className="checkbox-label"><input type="radio" name="paymentMethod" value={m} checked={choice===m} disabled={busy} onChange={()=>setChoice(m)}/> <span><strong>{METHODS[m].name}</strong>{LIVE?'':' (pruebas)'}<br/><small className="muted">{METHODS[m].detail}</small></span></label>)}</div>
-    {methods.length>0&&<p>{LIVE?'Continuarás al sitio oficial del método elegido para completar el pago. No guardamos datos de tu tarjeta.':'Continuarás al checkout oficial en modo de pruebas.'} Si cambias de método, el intento anterior se cierra.</p>}
+    {methods.length>0&&<p>{LIVE?'Continuarás al sitio oficial del método elegido para completar el pago. No guardamos datos de tu tarjeta.':'Continuarás al checkout oficial en modo de pruebas.'}{methods.length>1?' Si cambias de método, el intento anterior se cierra.':''}</p>}
     {choice&&<button type="button" className="button" disabled={busy} onClick={()=>void pay()}>{busy?'Preparando pago…':`Pagar con ${METHODS[choice].name}`}</button>}
-    {error&&<p role={busy?'status':'alert'} className={busy?'muted':'error'}>{error}</p>}</section>;
+    {error&&<p role={busy?'status':'alert'} className={busy?'muted':'error'}>{error}</p>}
+    {methods.length===0&&error&&<button type="button" className="text-link" onClick={()=>{setMethods(null);setRound(n=>n+1)}}>Reintentar</button>}</section>;
 }
 
 /** PayPal sends the buyer back here after approval; the backend captures the payment, then the order is shown. */
