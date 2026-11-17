@@ -46,7 +46,7 @@ public class OrderAdminService {
             db.update("delete from order_emails where order_id=? and kind='SHIPMENT'", id);
             db.update("update orders set shipping_email_sent_at=null where id=?", id);
         } else if (trackingChanged) {
-            db.update("update order_emails set status='PENDING',attempts=0,next_attempt_at=now(),claimed_until=null,last_error=null where order_id=? and kind='SHIPMENT'", id);
+            db.update("update order_emails set revision=revision+1,status='PENDING',attempts=0,next_attempt_at=now(),claimed_until=null,claim_id=null,sent_at=null,last_error=null where order_id=? and kind='SHIPMENT'", id);
             db.update("update orders set shipping_email_sent_at=null where id=?", id);
         }
         return view;

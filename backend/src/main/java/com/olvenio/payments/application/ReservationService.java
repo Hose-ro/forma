@@ -83,7 +83,17 @@ public class ReservationService {
      * it. Orders that never started a payment need nothing from the provider.
      */
     public void closeAtProvider(UUID orderId) {
-        Payment p = payments.byOrder(orderId).orElse(null);
+        // Serialize the durable closing intent with creation/recovery, including an in-flight provider POST.
+        // Provider reads/expiration happen after committing this intent, so no new creation can slip through.
+        Payment p = tx.execute(t -> {
+            Order order = orders.lockById(orderId).orElseThrow(() -> new NotFoundException("Order not found"));
+            if (order.getStatus() != OrderStatus.PENDING_PAYMENT) return null;
+            Payment current = payments.byOrder(orderId).orElse(null);
+            if (current == null) return null;
+            payments.lock(current.id());
+            payments.closeCheckout(current.id());
+            return payments.find(current.id()).orElseThrow();
+        });
         if (p == null) return;
         config.requireConfigured();
         client.requireTestSeller();
@@ -119,6 +129,8 @@ public class ReservationService {
         Payment p = payments.byOrder(orderId).orElse(null);
         if (p != null) {
             payments.lock(p.id());
+            if (!payments.checkoutClosed(p.id()))
+                throw new ConflictException("The payment link must be closed before releasing stock");
             Integer live = payments.db().queryForObject(
                     "select count(*) from payment_resources where payment_id=? and status not in ('REJECTED','CANCELLED')",
                     Integer.class, p.id());

@@ -9,11 +9,8 @@ import com.olvenio.shared.security.SessionRevocations;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -23,18 +20,20 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Password recovery and email verification with single-use, expiring links. Only the HMAC of a token is stored.
- * Requests never reveal whether an address has an account: the work happens off the request thread and the
- * caller always gets the same answer.
+ * Requests enqueue durable work before returning the same answer for known and unknown addresses.
+ * SMTP retries reconstruct the same link using a domain-separated server HMAC, never a stored bearer token.
  */
 @Service
 public class AccountRecoveryService {
     private static final Logger log = LoggerFactory.getLogger(AccountRecoveryService.class);
     private static final Duration RESET_TTL = Duration.ofMinutes(30);
     private static final Duration VERIFY_TTL = Duration.ofHours(48);
+    private static final int MAX_ATTEMPTS = 8;
 
     private final UserRepository users;
     private final JdbcTemplate db;
@@ -47,13 +46,6 @@ public class AccountRecoveryService {
     private final String from;
     private final String store;
     private final String frontendUrl;
-    /** Bounded: a flood of requests is dropped instead of queued without limit. */
-    private final ExecutorService worker = new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS,
-            new ArrayBlockingQueue<>(200), r -> {
-                Thread t = new Thread(r, "account-mail");
-                t.setDaemon(true);
-                return t;
-            }, new ThreadPoolExecutor.DiscardPolicy());
 
     public AccountRecoveryService(UserRepository users, JdbcTemplate db, SecretTokens tokens, PasswordEncoder encoder,
                                   SessionRevocations revocations, RequestLimits limits, TransactionTemplate tx,
@@ -73,21 +65,14 @@ public class AccountRecoveryService {
         this.frontendUrl = frontendUrl.replaceAll("/$", "");
     }
 
-    /** Always returns immediately and silently, whether or not the address belongs to an account. */
+    /** Both known and unknown addresses are queued; account lookup happens only in the delivery worker. */
     public void requestPasswordReset(String email) {
-        String normalized = User.normalizeEmail(email);
-        worker.execute(() -> guarded(() -> users.findByEmailIgnoreCase(normalized).filter(User::isEnabled)
-                .ifPresent(u -> issue(u, "PASSWORD_RESET", RESET_TTL, "/account/reset", "Restablece tu contraseña",
-                        "Recibimos una solicitud para restablecer la contraseña de tu cuenta. El enlace vence en 30 minutos "
-                                + "y solo puede usarse una vez:",
-                        "Si no fuiste tú, ignora este mensaje: tu contraseña no cambia."))));
+        enqueue(User.normalizeEmail(email), "PASSWORD_RESET", RESET_TTL);
     }
 
     public void requestVerification(UUID userId) {
-        worker.execute(() -> guarded(() -> users.findById(userId).filter(u -> u.isEnabled() && !u.isEmailVerified())
-                .ifPresent(u -> issue(u, "EMAIL_VERIFICATION", VERIFY_TTL, "/account/verify", "Confirma tu correo",
-                        "Confirma que este correo te pertenece para proteger tu cuenta. El enlace vence en 48 horas:",
-                        "Si no creaste una cuenta, ignora este mensaje."))));
+        users.findById(userId).filter(u -> u.isEnabled() && !u.isEmailVerified())
+                .ifPresent(u -> enqueue(u.getEmail(), "EMAIL_VERIFICATION", VERIFY_TTL));
     }
 
     public void resetPassword(String token, String newPassword) {
@@ -97,6 +82,7 @@ public class AccountRecoveryService {
             // Receiving the link proves control of the mailbox.
             u.markEmailVerified(Instant.now());
             users.save(u);
+            db.update("update account_tokens set used_at=now() where user_id=? and purpose='EMAIL_VERIFICATION' and used_at is null", u.getId());
             db.update("update account_tokens set used_at=now() where user_id=? and purpose='PASSWORD_RESET' and used_at is null", u.getId());
             return u.getId();
         });
@@ -123,35 +109,95 @@ public class AccountRecoveryService {
                 .orElseThrow(() -> new BusinessRuleException("The link is invalid or has expired"));
     }
 
-    private void issue(User u, String purpose, Duration ttl, String path, String subject, String intro, String outro) {
-        if (mail == null || from.isBlank() || frontendUrl.isBlank()) {
-            log.warn("Account email not sent: SMTP, APP_MAIL_FROM or APP_PUBLIC_FRONTEND_URL is not configured");
-            return;
+    private void enqueue(String email, String purpose, Duration ttl) {
+        String normalized = User.normalizeEmail(email);
+        // Same address budget and persistence path whether an account exists or not.
+        if (limits.retryAfter("account-mail:" + purpose + ":" + tokens.hash(normalized), 3, Duration.ofMinutes(15)) > 0) return;
+        db.update("insert into account_emails(id,email,purpose,expires_at) values (?,?,?,?)", UUID.randomUUID(),
+                normalized, purpose, java.sql.Timestamp.from(Instant.now().plus(ttl)));
+    }
+
+    @Scheduled(fixedDelayString = "${app.mail.poll-delay:60000}", initialDelayString = "${app.mail.initial-delay:30000}")
+    public void deliverEmails() {
+        db.update("delete from account_emails where expires_at<now()-interval '7 days'");
+        db.update("delete from account_tokens where expires_at<now()-interval '7 days'");
+        db.update("update account_emails set status='FAILED',last_error='EXPIRED',claimed_until=null,claim_id=null "
+                + "where status in ('PENDING','PROCESSING') and expires_at<=now()");
+        db.update("update account_emails set status='FAILED',last_error='CLAIM_EXPIRED',claimed_until=null,claim_id=null "
+                + "where status='PROCESSING' and claimed_until<now() and attempts>=?", MAX_ATTEMPTS);
+        if (mail == null || from.isBlank() || frontendUrl.isBlank()) return;
+        // Claim only when ready to send, so queued jobs never spend their lease behind an earlier SMTP call.
+        for (int i = 0; i < 10; i++) {
+            var jobs = db.queryForList("""
+                    update account_emails e set status='PROCESSING', attempts=attempts+1,
+                        claimed_until=now()+interval '5 minutes',claim_id=gen_random_uuid()
+                    where id in (select id from account_emails where attempts<? and expires_at>now()
+                        and ((status='PENDING' and next_attempt_at<=now()) or (status='PROCESSING' and claimed_until<now()))
+                        order by next_attempt_at,id limit 1 for update skip locked)
+                    returning id,email,purpose,attempts,expires_at,claim_id""", MAX_ATTEMPTS);
+            if (jobs.isEmpty()) return;
+            deliver(jobs.getFirst());
         }
-        // Per-account budget, independent of the caller's address.
-        if (limits.retryAfter("account-mail:" + purpose + ":" + u.getId(), 3, Duration.ofMinutes(15)) > 0) return;
-        String token = tokens.newToken();
-        tx.executeWithoutResult(t -> {
-            db.update("update account_tokens set used_at=now() where user_id=? and purpose=? and used_at is null", u.getId(), purpose);
-            db.update("insert into account_tokens(id,user_id,purpose,token_hash,expires_at) values (?,?,?,?,?)", UUID.randomUUID(),
-                    u.getId(), purpose, tokens.hash(token), java.sql.Timestamp.from(Instant.now().plus(ttl)));
-            db.update("delete from account_tokens where expires_at < now() - interval '7 days'");
-        });
+    }
+
+    private record Message(String email, String firstName, String purpose, String token) {}
+
+    private void deliver(Map<String, Object> job) {
+        UUID id = (UUID) job.get("id");
+        Object claim = job.get("claim_id");
+        int attempts = ((Number) job.get("attempts")).intValue();
+        try {
+            Message message = tx.execute(t -> {
+                Boolean owned = db.queryForObject("select exists(select 1 from account_emails where id=? "
+                        + "and status='PROCESSING' and claim_id=? and expires_at>now())", Boolean.class, id, claim);
+                if (!Boolean.TRUE.equals(owned)) return null;
+                String purpose = (String) job.get("purpose");
+                var user = users.findByEmailIgnoreCase((String) job.get("email"))
+                        .filter(u -> u.isEnabled() && (!"EMAIL_VERIFICATION".equals(purpose) || !u.isEmailVerified()));
+                if (user.isEmpty()) return null;
+                User u = user.get();
+                String token = tokens.accountMailToken(id);
+                // Never revoke a previously delivered link merely because a newer SMTP attempt may fail.
+                // Consuming a reset revokes all reset links; every link still has its own expiry and single use.
+                db.update("insert into account_tokens(id,user_id,purpose,token_hash,expires_at) values (?,?,?,?,?) "
+                                + "on conflict(id) do nothing", id, u.getId(), purpose, tokens.hash(token), job.get("expires_at"));
+                Boolean usable = db.queryForObject("select exists(select 1 from account_tokens where id=? "
+                        + "and token_hash=? and used_at is null and expires_at>now())", Boolean.class, id, tokens.hash(token));
+                return Boolean.TRUE.equals(usable) ? new Message(u.getEmail(), u.getFirstName(), purpose, token) : null;
+            });
+            if (message == null) {
+                db.update("update account_emails set status='SKIPPED',last_error='NO_ELIGIBLE_LINK',claimed_until=null,claim_id=null "
+                        + "where id=? and status='PROCESSING' and claim_id=?", id, claim);
+                return;
+            }
+            send(message);
+            db.update("update account_emails set status='SENT',sent_at=now(),last_error=null,claimed_until=null,claim_id=null "
+                    + "where id=? and status='PROCESSING' and claim_id=?", id, claim);
+        } catch (RuntimeException e) {
+            long minutes = Math.min(60, 1L << Math.min(attempts - 1, 6));
+            db.update("update account_emails set status=?,last_error=?,claimed_until=null,claim_id=null,"
+                            + "next_attempt_at=now()+make_interval(mins => ?) where id=? and status='PROCESSING' and claim_id=?",
+                    attempts >= MAX_ATTEMPTS ? "FAILED" : "PENDING", e.getClass().getSimpleName(), (int) minutes, id, claim);
+            log.warn("Account email {} deferred after attempt {} ({})", id, attempts, e.getClass().getSimpleName());
+        }
+    }
+
+    private void send(Message message) {
+        boolean reset = "PASSWORD_RESET".equals(message.purpose());
+        String path = reset ? "/account/reset" : "/account/verify";
+        String subject = reset ? "Restablece tu contraseña" : "Confirma tu correo";
+        String intro = reset ? "Recibimos una solicitud para restablecer tu contraseña. Este enlace es de un solo uso "
+                + "y vence 30 minutos después de la solicitud:" : "Confirma que este correo te pertenece. El enlace vence 48 horas después de la solicitud:";
+        String outro = reset ? "Si no fuiste tú, ignora este mensaje: tu contraseña no cambia."
+                : "Si no creaste una cuenta, ignora este mensaje.";
         SimpleMailMessage m = new SimpleMailMessage();
         m.setFrom(from);
-        m.setTo(u.getEmail());
+        m.setTo(message.email());
         m.setSubject(subject + " · " + store);
         // The token travels in the URL fragment so it never reaches server logs or Referer headers.
-        m.setText("Hola " + u.getFirstName() + ",\n\n" + intro + "\n\n" + frontendUrl + path + "#token=" + token
+        m.setText("Hola " + message.firstName() + ",\n\n" + intro + "\n\n" + frontendUrl + path + "#token=" + message.token()
                 + "\n\n" + outro + "\n\n" + store + "\n");
         mail.send(m);
     }
 
-    private static void guarded(Runnable task) {
-        try {
-            task.run();
-        } catch (RuntimeException e) {
-            log.warn("Account email failed ({})", e.getClass().getSimpleName());
-        }
-    }
 }

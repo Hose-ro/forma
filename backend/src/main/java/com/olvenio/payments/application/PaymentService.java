@@ -53,7 +53,10 @@ public class PaymentService {
             if (!expires.isAfter(Instant.now().plus(IN_FLIGHT))) throw new ConflictException("The reservation for this order expired; place a new order");
             if (payments.keyBelongsToAnotherOrder(key,order)) throw new ConflictException("Idempotency-Key belongs to another order");
             var existing=payments.byOrder(order);
-            if (existing.isPresent()) return new Start(existing.get(),false,expires);
+            if (existing.isPresent()) {
+                requireCheckoutOpen(existing.get().id());
+                return new Start(existing.get(),false,expires);
+            }
             if (o.getTotal().signum()<=0 || !"MXN".equals(o.getCurrency())) throw new ConflictException("Invalid payable amount or currency");
             UUID id=UUID.randomUUID();
             payments.db().update("insert into payments(id,order_id,status,amount,currency) values (?,?,'CREATED',?,?)",id,order,o.getTotal(),o.getCurrency());
@@ -83,7 +86,10 @@ public class PaymentService {
         if (!found.isArray()) throw new MercadoPagoClient.ProviderException();
         if (!found.isEmpty()) return store(existing,order,official(existing,found.get(0).path("id").asText()),"PREFERENCE_RECOVERED");
         Integer claimed=tx.execute(t->{
-            orders.lockById(order).orElseThrow();payments.lock(existing.id());
+            Order current=orders.lockById(order).orElseThrow();
+            requirePayable(current);
+            payments.lock(existing.id());
+            requireCheckoutOpen(existing.id());
             return payments.db().update("update payment_attempts set status='CREATING',updated_at=now() where payment_id=? and status in ('UNKNOWN','CREATING') and updated_at<now()-interval '2 minutes'",existing.id());
         });
         if (claimed==null || claimed!=1) throw new ConflictException("Payment initialization is still in progress; retry in a couple of minutes");
@@ -101,27 +107,56 @@ public class PaymentService {
     }
 
     private Payment store(Payment p,UUID order,JsonNode preference,String event) {
-        String url=client.checkoutUrl(preference);
-        String preferenceId=preference.path("id").asText();
         return tx.execute(t->{
             Order current=orders.lockById(order).orElseThrow();
             if (current.getStatus()!=OrderStatus.PENDING_PAYMENT) throw new ConflictException("Order cannot be paid in its current state");
             payments.lock(p.id());
-            payments.db().update("update payments set provider_preference_id=?,checkout_url=?,status=case when status in ('CREATED','UNKNOWN') and provider_payment_id is null then 'PENDING' else status end,failure_reason=case when failure_reason='PREFERENCE_RESULT_UNCERTAIN' then null else failure_reason end,updated_at=now() where id=?",preferenceId,url,p.id());
-            payments.db().update("update payment_attempts set status='READY',provider_request_id=?,updated_at=now() where payment_id=?",preferenceId,p.id());
-            payments.event(p.id(),null,event,"{}","PROCESSED");
-            return payments.find(p.id()).orElseThrow();
+            requireCheckoutOpen(p.id());
+            return storeLocked(p,preference,event);
         });
+    }
+
+    private Payment storeLocked(Payment p,JsonNode preference,String event) {
+        String url=client.checkoutUrl(preference);
+        String preferenceId=preference.path("id").asText();
+        payments.db().update("update payments set provider_preference_id=?,checkout_url=?,status=case when status in ('CREATED','UNKNOWN') and provider_payment_id is null then 'PENDING' else status end,failure_reason=case when failure_reason='PREFERENCE_RESULT_UNCERTAIN' then null else failure_reason end,updated_at=now() where id=?",preferenceId,url,p.id());
+        payments.db().update("update payment_attempts set status='READY',provider_request_id=?,updated_at=now() where payment_id=?",preferenceId,p.id());
+        payments.event(p.id(),null,event,"{}","PROCESSED");
+        return payments.find(p.id()).orElseThrow();
+    }
+
+    private void requirePayable(Order order) {
+        if (order.getStatus()!=OrderStatus.PENDING_PAYMENT)
+            throw new ConflictException("Order cannot be paid in its current state");
+        if (order.getReservationExpiresAt()!=null && !order.getReservationExpiresAt().isAfter(Instant.now().plus(IN_FLIGHT)))
+            throw new ConflictException("The reservation for this order expired; place a new order");
+    }
+
+    private void requireCheckoutOpen(UUID payment) {
+        if (payments.checkoutClosed(payment))
+            throw new ConflictException("The payment link is closing or closed; this order cannot start another payment");
     }
 
     private Payment create(Payment p,UUID order,Instant expires) {
         try {
-            var result=client.createPreference(p,expires);
-            if (result.path("id").asText().isBlank() || !config.collectorId().equals(result.path("collector_id").asText())) throw new MercadoPagoClient.ProviderException();
-            return store(p,order,result,"PREFERENCE_READY");
+            // Keep the order lock through the bounded provider call and persistence. Cancellation first
+            // takes this same lock to close checkout: it either prevents the POST or sees its persisted result.
+            // The earlier CREATING commit still protects an uncertain result if this transaction rolls back.
+            return tx.execute(t->{
+                Order current=orders.lockById(order).orElseThrow();
+                requirePayable(current);
+                payments.lock(p.id());
+                requireCheckoutOpen(p.id());
+                var result=client.createPreference(p,expires);
+                if (result.path("id").asText().isBlank() || !config.collectorId().equals(result.path("collector_id").asText())) throw new MercadoPagoClient.ProviderException();
+                return storeLocked(p,result,"PREFERENCE_READY");
+            });
+        } catch (ConflictException e) {
+            throw e;
         } catch (RuntimeException e) {
             tx.executeWithoutResult(t->{
-                orders.lockById(order).orElseThrow();payments.lock(p.id());
+                Order current=orders.lockById(order).orElseThrow();payments.lock(p.id());
+                if (current.getStatus()!=OrderStatus.PENDING_PAYMENT || payments.checkoutClosed(p.id())) return;
                 payments.db().update("update payment_attempts set status='UNKNOWN',updated_at=now() where payment_id=? and status='CREATING'",p.id());
                 payments.db().update("update payments set status=case when status='CREATED' then 'UNKNOWN' else status end,failure_reason='PREFERENCE_RESULT_UNCERTAIN',updated_at=now() where id=? and checkout_url is null",p.id());
                 payments.event(p.id(),null,"PREFERENCE_UNCERTAIN","{}","REVIEW");

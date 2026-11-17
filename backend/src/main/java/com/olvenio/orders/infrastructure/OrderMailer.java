@@ -3,6 +3,7 @@ package com.olvenio.orders.infrastructure;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Map;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +13,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Transactional emails (payment confirmation, shipment notice) delivered from the order_emails outbox
@@ -28,10 +30,11 @@ public class OrderMailer {
     private final String notify;
     private final String store;
     private final String frontendUrl;
+    private final TransactionTemplate tx;
 
     public OrderMailer(JdbcTemplate db, JavaMailSender mail, @Value("${app.mail.from:}") String from,
                        @Value("${app.mail.notify:}") String notify, @Value("${app.store-name:Olvenio}") String store,
-                       @Value("${app.payments.frontend-url:}") String frontendUrl) {
+                       @Value("${app.payments.frontend-url:}") String frontendUrl, TransactionTemplate tx) {
         if (from.isBlank()) throw new IllegalStateException("APP_MAIL_FROM is required when SPRING_MAIL_HOST is set");
         this.db = db;
         this.mail = mail;
@@ -39,13 +42,14 @@ public class OrderMailer {
         this.notify = notify;
         this.store = store;
         this.frontendUrl = frontendUrl.replaceAll("/$", "");
+        this.tx = tx;
     }
 
     private static final int MAX_ATTEMPTS = 8;
     private static final String ORDER_COLUMNS = "select id,order_number,email,customer_first_name,subtotal,shipping_total,"
             + "total,currency,carrier,tracking_number,status,fulfillment_status from orders where id=?";
 
-    @Scheduled(fixedDelayString = "${app.mail.poll-delay:60000}", initialDelay = 30000)
+    @Scheduled(fixedDelayString = "${app.mail.poll-delay:60000}", initialDelayString = "${app.mail.initial-delay:30000}")
     public void deliver() {
         enqueue();
         // A claim is a lease, not a "sent" mark: if this process dies mid-send the lease expires and the
@@ -53,11 +57,12 @@ public class OrderMailer {
         db.update("update order_emails set status='FAILED',last_error='CLAIM_EXPIRED' where status='PROCESSING' "
                 + "and claimed_until<now() and attempts>=?", MAX_ATTEMPTS);
         var jobs = db.queryForList("""
-                update order_emails e set status='PROCESSING', attempts=attempts+1, claimed_until=now()+interval '5 minutes'
+                update order_emails e set status='PROCESSING', attempts=attempts+1, claimed_until=now()+interval '5 minutes',
+                    claim_id=gen_random_uuid()
                 where e.id in (select id from order_emails where attempts<? and ((status='PENDING' and next_attempt_at<=now())
                         or (status='PROCESSING' and claimed_until<now()))
                     order by next_attempt_at limit 10 for update skip locked)
-                returning e.id, e.order_id, e.kind, e.attempts""", MAX_ATTEMPTS);
+                returning e.id, e.order_id, e.kind, e.attempts, e.revision, e.claim_id""", MAX_ATTEMPTS);
         jobs.forEach(this::send);
     }
 
@@ -75,12 +80,17 @@ public class OrderMailer {
         Object id = job.get("order_id");
         boolean confirmation = "CONFIRMATION".equals(job.get("kind"));
         int attempts = ((Number) job.get("attempts")).intValue();
+        long revision = ((Number) job.get("revision")).longValue();
+        Object claim = job.get("claim_id");
         try {
+            if (!Boolean.TRUE.equals(db.queryForObject("select exists(select 1 from order_emails where id=? "
+                    + "and status='PROCESSING' and revision=? and claim_id=?)", Boolean.class, jobId, revision, claim))) return;
             Map<String, Object> o = db.queryForMap(ORDER_COLUMNS, id);
             boolean due = "PAID".equals(o.get("status")) && (confirmation
                     || java.util.List.of("SHIPPED", "DELIVERED").contains(o.get("fulfillment_status")));
             if (!due) {
-                db.update("update order_emails set status='FAILED',last_error='ORDER_NO_LONGER_ELIGIBLE',claimed_until=null where id=?", jobId);
+                db.update("update order_emails set status='FAILED',last_error='ORDER_NO_LONGER_ELIGIBLE',claimed_until=null,claim_id=null "
+                        + "where id=? and status='PROCESSING' and revision=? and claim_id=?", jobId, revision, claim);
                 return;
             }
             SimpleMailMessage m = new SimpleMailMessage();
@@ -96,15 +106,21 @@ public class OrderMailer {
             mail.send(m);
             // If the process dies between the SMTP acceptance and these updates the email is sent once more
             // after the lease expires: a rare duplicate is preferred over a silently lost notice.
-            db.update("update order_emails set status='SENT',sent_at=now(),claimed_until=null,last_error=null where id=?", jobId);
-            db.update("update orders set " + (confirmation ? "confirmation_email_sent_at" : "shipping_email_sent_at")
-                    + "=now() where id=?", id);
+            tx.executeWithoutResult(t -> {
+                // Corrections take this order lock before changing the outbox too. Only the worker that
+                // still owns this revision may mark both the job and its order as notified.
+                db.queryForObject("select id from orders where id=? for update", UUID.class, id);
+                int sent = db.update("update order_emails set status='SENT',sent_at=now(),claimed_until=null,claim_id=null,last_error=null "
+                        + "where id=? and status='PROCESSING' and revision=? and claim_id=?", jobId, revision, claim);
+                if (sent == 1) db.update("update orders set "
+                        + (confirmation ? "confirmation_email_sent_at" : "shipping_email_sent_at") + "=now() where id=?", id);
+            });
         } catch (RuntimeException e) {
             boolean exhausted = attempts >= MAX_ATTEMPTS;
             long minutes = Math.min(360, 1L << Math.min(attempts, 9));
-            db.update("update order_emails set status=?,claimed_until=null,last_error=?,"
-                            + "next_attempt_at=now()+make_interval(mins => ?) where id=?",
-                    exhausted ? "FAILED" : "PENDING", e.getClass().getSimpleName(), (int) minutes, jobId);
+            db.update("update order_emails set status=?,claimed_until=null,claim_id=null,last_error=?,"
+                            + "next_attempt_at=now()+make_interval(mins => ?) where id=? and status='PROCESSING' and revision=? and claim_id=?",
+                    exhausted ? "FAILED" : "PENDING", e.getClass().getSimpleName(), (int) minutes, jobId, revision, claim);
             if (exhausted) log.error("Order email for {} failed permanently after {} attempts", id, attempts);
             else log.warn("Order email deferred for {} ({}), attempt {}", id, e.getClass().getSimpleName(), attempts);
         }

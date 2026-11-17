@@ -22,6 +22,13 @@ public class PaymentRepository {
     public Optional<Payment> byOrder(UUID order) { return db.query("select * from payments where order_id=?",this::map,order).stream().findFirst(); }
     public Optional<Payment> find(UUID id) { return db.query("select * from payments where id=?",this::map,id).stream().findFirst(); }
     public Payment lock(UUID id) { return db.query("select * from payments where id=? for update",this::map,id).getFirst(); }
+    public boolean checkoutClosed(UUID id) {
+        return Boolean.TRUE.equals(db.queryForObject("select checkout_closed_at is not null from payments where id=?", Boolean.class, id));
+    }
+    /** Caller holds the order and payment locks. This intent survives provider/network failures. */
+    public void closeCheckout(UUID id) {
+        db.update("update payments set checkout_closed_at=coalesce(checkout_closed_at,now()) where id=?", id);
+    }
     public boolean keyBelongsToAnotherOrder(String key, UUID order) {
         return Boolean.TRUE.equals(db.queryForObject("select exists(select 1 from payment_attempts a join payments p on p.id=a.payment_id where a.idempotency_key=? and p.order_id<>?)",Boolean.class,key,order));
     }

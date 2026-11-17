@@ -65,6 +65,34 @@ class PaymentIdempotencyTest {
         assertThatThrownBy(()->service().preference(id,"payment-key-12345678",token)).isInstanceOf(ConflictException.class);
         verifyNoInteractions(client);
     }
+    @Test void recoveryCannotCreateAfterCancellationDuringProviderSearch() throws Exception {
+        String token=tokens.newToken();UUID id=setup(token,PaymentStatus.UNKNOWN,null);
+        Order order=orders.lockById(id).orElseThrow();
+        Payment old=payments.byOrder(id).orElseThrow();
+        Payment uncertain=new Payment(old.id(),id,old.provider(),null,null,old.status(),old.amount(),old.currency(),null,
+                Instant.now().minusSeconds(600),null,null);
+        when(payments.byOrder(id)).thenReturn(Optional.of(uncertain));
+        when(client.preferencesByReference(old.id())).thenAnswer(invocation->{
+            order.cancel("Concurrent cancellation",null,Instant.now());
+            return new com.fasterxml.jackson.databind.ObjectMapper().readTree("{\"elements\":[]}");
+        });
+        assertThatThrownBy(()->service().preference(id,"payment-key-12345678",token)).isInstanceOf(ConflictException.class);
+        verify(client,never()).createPreference(any(),any());
+        verify(payments,never()).event(eq(old.id()),isNull(),eq("PREFERENCE_RETRY"),anyString(),anyString());
+    }
+
+    @Test void recoveryCannotCreateAfterClosingIntentDuringProviderSearch() throws Exception {
+        String token=tokens.newToken();UUID id=setup(token,PaymentStatus.UNKNOWN,null);
+        Payment old=payments.byOrder(id).orElseThrow();
+        when(payments.byOrder(id)).thenReturn(Optional.of(new Payment(old.id(),id,old.provider(),null,null,old.status(),
+                old.amount(),old.currency(),null,Instant.now().minusSeconds(600),null,null)));
+        when(client.preferencesByReference(old.id())).thenAnswer(invocation->{
+            when(payments.checkoutClosed(old.id())).thenReturn(true);
+            return new com.fasterxml.jackson.databind.ObjectMapper().readTree("{\"elements\":[]}");
+        });
+        assertThatThrownBy(()->service().preference(id,"payment-key-12345678",token)).isInstanceOf(ConflictException.class);
+        verify(client,never()).createPreference(any(),any());
+    }
     @Test void keyCannotBeReusedForAnotherOrder(){
         String token=tokens.newToken();UUID id=setup(token,PaymentStatus.PENDING,"https://www.mercadopago.com.mx/checkout/v1/redirect");
         when(payments.keyBelongsToAnotherOrder("payment-key-12345678",id)).thenReturn(true);
