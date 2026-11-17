@@ -8,7 +8,7 @@ import { ArrowUpRight, ChartColumn, Compass, Cookie, CreditCard, EyeOff, FileTex
 import { Reveal } from './ui';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const UPDATED = '12 de noviembre de 2026';
+const UPDATED = '17 de noviembre de 2026';
 const CONTACT = BUSINESS.email;
 
 const SECTIONS = [
@@ -26,7 +26,7 @@ const SECTIONS = [
 const SUMMARY: SummaryItem[] = [
   { icon: UserRound, title: 'Lo mínimo', text: 'Solo pedimos lo necesario para tu cuenta y para entregar un pedido.' },
   { icon: ShieldCheck, title: 'Sin rastreo', text: 'No usamos cookies publicitarias ni herramientas de analítica de terceros.' },
-  { icon: Lock, title: 'Sin tarjetas', text: 'Los pagos los procesa Mercado Pago. Nunca vemos los datos de tu tarjeta.' },
+  { icon: Lock, title: 'Sin tarjetas', text: 'Los pagos los procesa la plataforma del método que elijas. Nunca vemos los datos de tu tarjeta ni de tu cuenta.' },
   { icon: KeyRound, title: 'Tú decides', text: 'Puedes acceder, corregir o eliminar tus datos cuando quieras.' },
 ];
 
@@ -301,7 +301,13 @@ export function PrivacyNotice() {
             <Section id="transferencias" index={5} title={<>Con quién los <i>compartimos.</i></>}>
               <p>No vendemos ni rentamos tus datos. Solo los compartimos cuando es necesario para cumplir tu pedido o la ley:</p>
               <ul className="legal-list">
-                <li><strong>Mercado Pago</strong>, para procesar el pago. Tus datos de tarjeta se capturan directamente en su plataforma y nunca pasan por nuestros servidores.{LIVE ? '' : ' En esta demostración opera solo en modo de prueba.'}</li>
+                <li>
+                  <strong>El procesador del método de pago que elijas</strong>: Mercado Pago, Stripe (tarjeta y OXXO), PayPal o Conekta
+                  (transferencia SPEI), según los métodos disponibles al pagar. Les enviamos el importe y la referencia de tu pedido; a Conekta,
+                  además, tu nombre, correo y, si lo diste, tu teléfono, que necesita para emitir tu referencia de pago. Tus datos de tarjeta o
+                  de cuenta se capturan directamente en su plataforma y nunca pasan por nuestros servidores. Si cambias de método antes de
+                  pagar, el procesador anterior solo conserva el intento cancelado.{LIVE ? '' : ' En esta demostración operan solo en modo de prueba.'}
+                </li>
                 <li><strong>Autoridades competentes</strong>, cuando exista un requerimiento fundado y motivado.</li>
               </ul>
               <p className="muted">Estas transferencias no requieren tu consentimiento por ser necesarias para la relación que mantienes con nosotros.</p>
@@ -520,8 +526,9 @@ export function CookiePolicy() {
         <div className="cookie-third">
           <CreditCard size={22} strokeWidth={1.5} aria-hidden="true" />
           <p>
-            Cuando pagas, te llevamos al sitio de <strong>Mercado Pago</strong> para completar la operación. Allí se aplican sus propias
-            cookies y su aviso de privacidad, que te recomendamos consultar.{LIVE ? '' : ' En esta demostración, Mercado Pago funciona solo en modo de prueba.'}
+            Cuando pagas, te llevamos al sitio del procesador del método que elegiste (<strong>Mercado Pago</strong>, <strong>Stripe</strong>,{' '}
+            <strong>PayPal</strong> o <strong>Conekta</strong>) para completar la operación. Allí se aplican sus propias cookies y su aviso de
+            privacidad, que te recomendamos consultar.{LIVE ? '' : ' En esta demostración, los pagos funcionan solo en modo de prueba.'}
           </p>
         </div>
       </Section>

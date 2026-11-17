@@ -49,7 +49,8 @@ function live(rules: ShippingRules | null): Record<string, Policy> {
           'Además, conforme al artículo 56 de la Ley Federal de Protección al Consumidor, puedes revocar tu compra sin responsabilidad dentro de los cinco días hábiles siguientes a la entrega, siempre que el producto no haya sido usado.',
         ] },
         { heading: 'Reembolsos', body: [
-          'Una vez recibido y revisado el producto, realizamos el reembolso a través de Mercado Pago al mismo medio de pago utilizado, en un máximo de 10 días hábiles. El tiempo en que se refleja depende de tu banco o emisor.',
+          'Una vez recibido y revisado el producto, realizamos el reembolso a través del mismo procesador y al mismo medio de pago utilizado, en un máximo de 10 días hábiles. El tiempo en que se refleja depende de tu banco o emisor.',
+          'Si el medio de pago no admite devoluciones, como el efectivo en OXXO o algunas transferencias, te pediremos una cuenta bancaria a tu nombre para transferirte el importe dentro del mismo plazo.',
         ] },
         { heading: 'Garantía', body: [
           'Todos los productos cuentan con garantía contra defectos de fabricación por al menos 90 días a partir de la entrega. La garantía no cubre el desgaste normal ni daños por uso indebido.',
@@ -70,8 +71,9 @@ function live(rules: ShippingRules | null): Record<string, Policy> {
           'Podemos actualizar precios y catálogo en cualquier momento; los cambios no afectan a los pedidos ya pagados.',
         ] },
         { heading: 'Pedidos y pago', body: [
-          'El pago se realiza en la plataforma de Mercado Pago, con los medios que esta ofrece. No almacenamos datos de tarjetas.',
-          'Tu pedido queda confirmado cuando Mercado Pago aprueba el pago; recibirás un correo de confirmación. Un pedido sin pago puede cancelarse y sus piezas volver al inventario.',
+          'El pago se realiza en la plataforma del procesador que elijas entre los métodos disponibles: Mercado Pago, Stripe (tarjeta u OXXO), PayPal o Conekta (transferencia SPEI). No almacenamos datos de tarjetas ni de cuentas.',
+          'Tu pedido queda confirmado cuando el procesador confirma el pago; recibirás un correo de confirmación. Los pagos en efectivo o por transferencia se confirman cuando el procesador recibe el depósito, que debe hacerse antes de que venza la referencia. Un pedido sin pago puede cancelarse y sus piezas volver al inventario.',
+          'Puedes cambiar de método antes de pagar; el intento anterior se cancela. Si un pago en efectivo o por transferencia sigue pendiente, debes esperar a que venza antes de elegir otro método.',
           'Podemos cancelar y reembolsar íntegramente un pedido ante un error evidente de precio o de inventario, o por sospecha fundada de fraude.',
           `Si necesitas factura (CFDI), solicítala a ${B.email} dentro del mes de tu compra, indicando tus datos fiscales y número de pedido.`,
         ] },

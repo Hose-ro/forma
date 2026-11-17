@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 // so every page builds them through `pageMetadata` to keep site name, locale and image.
 export const SITE_NAME = 'Olvenio';
 export const SITE_TAGLINE = 'Olvenio — Objects with character.';
-export const SITE_DESCRIPTION = `Una colección de audio, living y accesorios para lo cotidiano.${process.env.NEXT_PUBLIC_STORE_MODE === 'live' ? ' Envíos dentro de México y pago seguro con Mercado Pago.' : ' Tienda de demostración.'}`;
+export const SITE_DESCRIPTION = `Una colección de audio, living y accesorios para lo cotidiano.${process.env.NEXT_PUBLIC_STORE_MODE === 'live' ? ' Envíos dentro de México y pago seguro con tarjeta, OXXO, transferencia o PayPal.' : ' Tienda de demostración.'}`;
 export const DEFAULT_OG_IMAGE = { url: '/products/hero.jpg', width: 2000, height: 1500, alt: 'Olvenio — objetos de diseño para lo cotidiano' };
 
 /** Public origin used for canonical URLs, Open Graph, robots and sitemap. */
