@@ -50,3 +50,17 @@ services:
         sync: false
       - key: MERCADOPAGO_WEBHOOK_SECRET
         sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: CONEKTA_PRIVATE_KEY
+        sync: false
+      - key: CONEKTA_WEBHOOK_PUBLIC_KEY
+        sync: false

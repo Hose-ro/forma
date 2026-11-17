@@ -18,6 +18,12 @@ app:
   frontend-origin: ${APP_FRONTEND_ORIGIN}
   payments:
     environment: ${MERCADOPAGO_ENVIRONMENT:production}
+    stripe:
+      environment: ${STRIPE_ENVIRONMENT:production}
+    paypal:
+      environment: ${PAYPAL_ENVIRONMENT:production}
+    conekta:
+      environment: ${CONEKTA_ENVIRONMENT:production}
 spring.mail.properties.mail.smtp:
   auth: true
   starttls.enable: true

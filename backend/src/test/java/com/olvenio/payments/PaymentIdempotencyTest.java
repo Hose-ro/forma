@@ -27,13 +27,17 @@ class PaymentIdempotencyTest {
         protected void doCommit(DefaultTransactionStatus s){}
         protected void doRollback(DefaultTransactionStatus s){}
     });
-    private PaymentService service(){return new PaymentService(orders,payments,client,new PaymentProperties("token","secret","test","123","https://front.example","https://back.example"),tokens,tx);}
+    private PaymentService service(){
+        var config=new PaymentProperties("token","secret","test","123","https://front.example","https://back.example");
+        var gateways=new PaymentGateways(List.of(new MercadoPagoGateway(client,config)));
+        return new PaymentService(orders,payments,gateways,new CheckoutCloser(payments,gateways,mock(PaymentVerificationService.class)),mock(PaymentVerificationService.class),tokens,tx);
+    }
     private UUID setup(String token,PaymentStatus status,String url){
         UUID id=UUID.randomUUID();var now=Instant.now();
         Order o=Order.quote(null,null,"a@example.com","Ana","Perez",null,"MXN",tokens.hash(token),now.plusSeconds(600));
         var price=Money.of(BigDecimal.TEN,"MXN");o.addItem(id,id,"SKU","P","p","v",null,price,1,price);o.place("OLV-1","checkout-key-123",now,null);
         when(orders.lockById(id)).thenReturn(Optional.of(o));
-        when(payments.byOrder(id)).thenReturn(Optional.of(new Payment(UUID.randomUUID(),id,"MERCADO_PAGO",null,"preference-1",status,BigDecimal.TEN,"MXN",url,now,null,null)));
+        when(payments.openByOrder(id)).thenReturn(Optional.of(new Payment(UUID.randomUUID(),id,"MERCADO_PAGO",null,"preference-1",status,BigDecimal.TEN,"MXN",url,now,null,null)));
         return id;
     }
     @Test void existingPreferenceIsReusedWithoutSecondProviderRequest(){
@@ -46,7 +50,7 @@ class PaymentIdempotencyTest {
     }
     @Test void oldCheckoutLinkIsRecoveredFromSamePreferenceWithoutCreatingAnother() {
         String token=tokens.newToken();UUID id=setup(token,PaymentStatus.PENDING,"https://sandbox.mercadopago.com.mx/checkout/v1/redirect");
-        Payment previous=payments.byOrder(id).orElseThrow();
+        Payment previous=payments.openByOrder(id).orElseThrow();
         String url="https://www.mercadopago.com.mx/checkout/v1/redirect?pref_id=preference-1";
         Payment refreshed=new Payment(previous.id(),id,previous.provider(),null,"preference-1",previous.status(),previous.amount(),previous.currency(),url,previous.createdAt(),null,null);
         var official=new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
@@ -65,6 +69,34 @@ class PaymentIdempotencyTest {
         assertThatThrownBy(()->service().preference(id,"payment-key-12345678",token)).isInstanceOf(ConflictException.class);
         verifyNoInteractions(client);
     }
+    @Test void recoveryCannotCreateAfterCancellationDuringProviderSearch() throws Exception {
+        String token=tokens.newToken();UUID id=setup(token,PaymentStatus.UNKNOWN,null);
+        Order order=orders.lockById(id).orElseThrow();
+        Payment old=payments.openByOrder(id).orElseThrow();
+        Payment uncertain=new Payment(old.id(),id,old.provider(),null,null,old.status(),old.amount(),old.currency(),null,
+                Instant.now().minusSeconds(600),null,null);
+        when(payments.openByOrder(id)).thenReturn(Optional.of(uncertain));
+        when(client.preferencesByReference(old.id())).thenAnswer(invocation->{
+            order.cancel("Concurrent cancellation",null,Instant.now());
+            return new com.fasterxml.jackson.databind.ObjectMapper().readTree("{\"elements\":[]}");
+        });
+        assertThatThrownBy(()->service().preference(id,"payment-key-12345678",token)).isInstanceOf(ConflictException.class);
+        verify(client,never()).createPreference(any(),any());
+        verify(payments,never()).event(eq(old.id()),isNull(),eq("PREFERENCE_RETRY"),anyString(),anyString());
+    }
+
+    @Test void recoveryCannotCreateAfterClosingIntentDuringProviderSearch() throws Exception {
+        String token=tokens.newToken();UUID id=setup(token,PaymentStatus.UNKNOWN,null);
+        Payment old=payments.openByOrder(id).orElseThrow();
+        when(payments.openByOrder(id)).thenReturn(Optional.of(new Payment(old.id(),id,old.provider(),null,null,old.status(),
+                old.amount(),old.currency(),null,Instant.now().minusSeconds(600),null,null)));
+        when(client.preferencesByReference(old.id())).thenAnswer(invocation->{
+            when(payments.checkoutClosed(old.id())).thenReturn(true);
+            return new com.fasterxml.jackson.databind.ObjectMapper().readTree("{\"elements\":[]}");
+        });
+        assertThatThrownBy(()->service().preference(id,"payment-key-12345678",token)).isInstanceOf(ConflictException.class);
+        verify(client,never()).createPreference(any(),any());
+    }
     @Test void keyCannotBeReusedForAnotherOrder(){
         String token=tokens.newToken();UUID id=setup(token,PaymentStatus.PENDING,"https://www.mercadopago.com.mx/checkout/v1/redirect");
         when(payments.keyBelongsToAnotherOrder("payment-key-12345678",id)).thenReturn(true);
@@ -74,6 +106,6 @@ class PaymentIdempotencyTest {
     @Test void knownUuidDoesNotAuthorizePayment(){
         UUID id=setup(tokens.newToken(),PaymentStatus.PENDING,"https://www.mercadopago.com.mx/checkout/v1/redirect");
         assertThatThrownBy(()->service().preference(id,"payment-key-12345678","wrong")).isInstanceOf(NotFoundException.class);
-        verifyNoInteractions(client);verify(payments,never()).byOrder(any());
+        verifyNoInteractions(client);verify(payments,never()).openByOrder(any());
     }
 }

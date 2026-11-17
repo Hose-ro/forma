@@ -3,7 +3,6 @@ package com.olvenio.payments.infrastructure;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.olvenio.payments.domain.Payment;
-import com.olvenio.shared.domain.DomainException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -135,9 +134,7 @@ public class MercadoPagoClient {
         } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new ProviderException(); }
           catch (Exception e) { throw new ProviderException(); }
     }
-    public static class ProviderException extends DomainException {
+    public static class ProviderException extends com.olvenio.payments.domain.ProviderUnavailableException {
         public ProviderException() { super("Mercado Pago is temporarily unavailable; payment verification is pending"); }
-        public int status() { return 503; }
-        public String title() { return "Payment provider unavailable"; }
     }
 }

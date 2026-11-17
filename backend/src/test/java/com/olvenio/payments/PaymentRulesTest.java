@@ -2,6 +2,7 @@ package com.olvenio.payments;
 import static org.assertj.core.api.Assertions.*;
 import com.olvenio.payments.domain.*;
 import com.olvenio.payments.application.PaymentVerificationService;
+import com.olvenio.payments.infrastructure.MercadoPagoGateway;
 import com.olvenio.orders.domain.*;
 import com.olvenio.shared.domain.Money;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +12,10 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 
 class PaymentRulesTest {
+    private static boolean verified(com.fasterxml.jackson.databind.JsonNode r,Payment p,String collector) { return verified(r,p,collector,false); }
+    private static boolean verified(com.fasterxml.jackson.databind.JsonNode r,Payment p,String collector,boolean testAccounts) {
+        return PaymentVerificationService.matches(MercadoPagoGateway.toCharge(r,collector,false,testAccounts),p);
+    }
     private final Instant now=Instant.parse("2026-11-11T12:00:00Z");
     @Test void mapsOfficialStatesExplicitlyAndBlocksUnsupportedStates() {
         var amount=new BigDecimal("100");
@@ -18,9 +23,9 @@ class PaymentRulesTest {
             "in_process",PaymentStatus.IN_PROCESS,"approved",PaymentStatus.APPROVED,"rejected",PaymentStatus.REJECTED,
             "cancelled",PaymentStatus.CANCELLED,"refunded",PaymentStatus.REFUNDED,"in_mediation",PaymentStatus.UNKNOWN,
             "charged_back",PaymentStatus.UNKNOWN,"new_state",PaymentStatus.UNKNOWN);
-        expected.forEach((status,value)->assertThat(PaymentStatus.fromProvider(status,BigDecimal.ZERO,amount)).isEqualTo(value));
-        assertThat(PaymentStatus.fromProvider("approved",BigDecimal.TEN,amount)).isEqualTo(PaymentStatus.PARTIALLY_REFUNDED);
-        assertThat(PaymentStatus.fromProvider("approved",amount,amount)).isEqualTo(PaymentStatus.REFUNDED);
+        expected.forEach((status,value)->assertThat(MercadoPagoGateway.status(status,BigDecimal.ZERO,amount)).isEqualTo(value));
+        assertThat(MercadoPagoGateway.status("approved",BigDecimal.TEN,amount)).isEqualTo(PaymentStatus.PARTIALLY_REFUNDED);
+        assertThat(MercadoPagoGateway.status("approved",amount,amount)).isEqualTo(PaymentStatus.REFUNDED);
     }
     @Test void rejectsOlderDuplicateAndRegressiveProviderSnapshots() {
         assertThat(PaymentStatus.accepts(PaymentStatus.PENDING,now,PaymentStatus.APPROVED,now)).isFalse();
@@ -55,15 +60,15 @@ class PaymentRulesTest {
         var p=new Payment(id,UUID.randomUUID(),"MERCADO_PAGO",null,null,PaymentStatus.PENDING,new BigDecimal("100"),"MXN",null,now,null,null);
         var json=new ObjectMapper().createObjectNode();json.put("transaction_amount",100);json.put("currency_id","MXN");
         json.put("external_reference",id.toString());json.put("collector_id",123);json.put("live_mode",false);json.put("transaction_amount_refunded",0);
-        assertThat(PaymentVerificationService.verified(json,p,"123")).isTrue();
+        assertThat(verified(json,p,"123")).isTrue();
         json.put("live_mode",true);
-        assertThat(PaymentVerificationService.verified(json,p,"123")).isFalse();
-        assertThat(PaymentVerificationService.verified(json,p,"123",true)).isTrue();
-        assertThat(PaymentVerificationService.verified(json,p,"999",true)).isFalse();
-        json.put("transaction_amount",99);assertThat(PaymentVerificationService.verified(json,p,"123",true)).isFalse();
+        assertThat(verified(json,p,"123")).isFalse();
+        assertThat(verified(json,p,"123",true)).isTrue();
+        assertThat(verified(json,p,"999",true)).isFalse();
+        json.put("transaction_amount",99);assertThat(verified(json,p,"123",true)).isFalse();
         json.put("transaction_amount",100);json.put("live_mode",false);
-        json.put("transaction_amount",99);assertThat(PaymentVerificationService.verified(json,p,"123")).isFalse();json.put("transaction_amount",100);
-        assertThat(PaymentVerificationService.verified(json,p,"999")).isFalse();json.put("currency_id","USD");assertThat(PaymentVerificationService.verified(json,p,"123")).isFalse();
-        json.put("currency_id","MXN");json.put("external_reference",UUID.randomUUID().toString());assertThat(PaymentVerificationService.verified(json,p,"123")).isFalse();
+        json.put("transaction_amount",99);assertThat(verified(json,p,"123")).isFalse();json.put("transaction_amount",100);
+        assertThat(verified(json,p,"999")).isFalse();json.put("currency_id","USD");assertThat(verified(json,p,"123")).isFalse();
+        json.put("currency_id","MXN");json.put("external_reference",UUID.randomUUID().toString());assertThat(verified(json,p,"123")).isFalse();
     }
 }

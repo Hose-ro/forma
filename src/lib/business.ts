@@ -2,7 +2,7 @@
 // (see .env.example) so real data never has to be hard-coded. Defaults keep the demo storefront working.
 const env = (value: string | undefined, fallback: string) => (value && value.trim()) || fallback;
 
-/** `live` = real sales (production Mercado Pago, real shipping). Anything else keeps the demo/test labels. */
+/** `live` = real sales (production payment providers, real shipping). Anything else keeps the demo/test labels. */
 export const LIVE = process.env.NEXT_PUBLIC_STORE_MODE === 'live';
 
 export const BUSINESS = {

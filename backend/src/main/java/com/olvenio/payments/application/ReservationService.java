@@ -1,6 +1,5 @@
 package com.olvenio.payments.application;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.olvenio.catalog.domain.ProductVariant;
 import com.olvenio.catalog.infrastructure.ProductVariantRepository;
 import com.olvenio.orders.domain.Order;
@@ -8,13 +7,10 @@ import com.olvenio.orders.domain.OrderItem;
 import com.olvenio.orders.domain.OrderStatus;
 import com.olvenio.orders.infrastructure.OrderRepository;
 import com.olvenio.payments.domain.Payment;
-import com.olvenio.payments.infrastructure.MercadoPagoClient;
-import com.olvenio.payments.infrastructure.PaymentProperties;
 import com.olvenio.payments.infrastructure.PaymentRepository;
 import com.olvenio.shared.domain.ConflictException;
 import com.olvenio.shared.domain.NotFoundException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -42,20 +38,15 @@ public class ReservationService {
     private final OrderRepository orders;
     private final ProductVariantRepository variants;
     private final PaymentRepository payments;
-    private final MercadoPagoClient client;
-    private final PaymentVerificationService verification;
-    private final PaymentProperties config;
+    private final CheckoutCloser closer;
     private final TransactionTemplate tx;
 
     public ReservationService(OrderRepository orders, ProductVariantRepository variants, PaymentRepository payments,
-                              MercadoPagoClient client, PaymentVerificationService verification,
-                              PaymentProperties config, TransactionTemplate tx) {
+                              CheckoutCloser closer, TransactionTemplate tx) {
         this.orders = orders;
         this.variants = variants;
         this.payments = payments;
-        this.client = client;
-        this.verification = verification;
-        this.config = config;
+        this.closer = closer;
         this.tx = tx;
     }
 
@@ -79,34 +70,23 @@ public class ReservationService {
     }
 
     /**
-     * Network step, outside any transaction: closes the checkout link and refreshes every payment created from
-     * it. Orders that never started a payment need nothing from the provider.
+     * Network step, outside any transaction: closes every checkout of the order and refreshes every charge
+     * created from them. Orders that never started a payment need nothing from the provider.
      */
     public void closeAtProvider(UUID orderId) {
-        Payment p = payments.byOrder(orderId).orElse(null);
-        if (p == null) return;
-        config.requireConfigured();
-        client.requireTestSeller();
-        List<String> preferences = new ArrayList<>();
-        if (p.providerPreferenceId() != null) {
-            preferences.add(p.providerPreferenceId());
-        } else {
-            // The creation result was never known: a preference may or may not exist at the provider.
-            if (p.createdAt().isAfter(Instant.now().minusSeconds(300)))
-                throw new ConflictException("Payment initialization is still in progress; retry in a few minutes");
-            JsonNode found = client.preferencesByReference(p.id()).path("elements");
-            if (!found.isArray()) throw new MercadoPagoClient.ProviderException();
-            found.forEach(e -> preferences.add(e.path("id").asText()));
-        }
-        for (String id : preferences) client.expirePreference(id);
-        for (int offset = 0; offset < 200; offset += 50) {
-            JsonNode results = client.search(p.id(), offset).path("results");
-            if (!results.isArray()) throw new MercadoPagoClient.ProviderException();
-            // Search only lists candidates; GET is the authoritative snapshot.
-            for (JsonNode resource : results) verification.apply(client.payment(resource.path("id").asText()));
-            if (results.size() < 50) break;
-        }
-        payments.event(p.id(), null, "PREFERENCE_CLOSED", "{}", "PROCESSED");
+        // Serialize the durable closing intent with creation/recovery, including an in-flight provider POST.
+        // Provider reads/expiration happen after committing this intent, so no new creation can slip through.
+        List<Payment> attempts = tx.execute(t -> {
+            Order order = orders.lockById(orderId).orElseThrow(() -> new NotFoundException("Order not found"));
+            if (order.getStatus() != OrderStatus.PENDING_PAYMENT) return List.<Payment>of();
+            for (Payment current : payments.allByOrder(orderId)) {
+                payments.lock(current.id());
+                payments.closeCheckout(current.id(), PaymentRepository.CloseReason.ORDER);
+            }
+            return payments.allByOrder(orderId);
+        });
+        // Attempts closed earlier by a method switch are re-read too: a cash ticket may have been paid since.
+        for (Payment p : attempts) closer.closeAtProvider(p);
     }
 
     /**
@@ -116,19 +96,20 @@ public class ReservationService {
     public Outcome release(UUID orderId, UUID actor, String note) {
         Order order = orders.lockById(orderId).orElseThrow(() -> new NotFoundException("Order not found"));
         if (order.getStatus() != OrderStatus.PENDING_PAYMENT) return Outcome.NOT_PENDING;
-        Payment p = payments.byOrder(orderId).orElse(null);
-        if (p != null) {
+        List<Payment> attempts = payments.allByOrder(orderId);
+        for (Payment p : attempts) {
             payments.lock(p.id());
-            Integer live = payments.db().queryForObject(
-                    "select count(*) from payment_resources where payment_id=? and status not in ('REJECTED','CANCELLED')",
-                    Integer.class, p.id());
-            if (live != null && live > 0)
-                throw new ConflictException("A payment for this order is still open at the provider; its stock stays reserved until it resolves");
+            if (!payments.checkoutClosed(p.id()))
+                throw new ConflictException("The payment link must be closed before releasing stock");
             Boolean closed = payments.db().queryForObject(
                     "select exists(select 1 from payment_events where payment_id=? and event_type='PREFERENCE_CLOSED' and received_at>now()-interval '10 minutes')",
                     Boolean.class, p.id());
             if (!Boolean.TRUE.equals(closed))
                 throw new ConflictException("The payment link must be closed at the provider before releasing stock");
+        }
+        if (payments.liveChargeForOrder(orderId))
+            throw new ConflictException("A payment for this order is still open at the provider; its stock stays reserved until it resolves");
+        for (Payment p : attempts) {
             payments.db().update("update payments set status='CANCELLED',failure_reason='RESERVATION_RELEASED',updated_at=now() where id=?", p.id());
             payments.event(p.id(), null, "RESERVATION_RELEASED", "{}", "PROCESSED");
         }

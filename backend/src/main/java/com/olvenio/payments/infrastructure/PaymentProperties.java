@@ -11,8 +11,10 @@ public record PaymentProperties(String accessToken, String webhookSecret, String
         if (!("test".equals(environment) || production()) || accessToken == null || accessToken.isBlank()
                 || webhookSecret == null || webhookSecret.isBlank() || collectorId == null || !collectorId.matches("[0-9]+"))
             throw new ConflictException("Mercado Pago configuration is incomplete");
-        publicHttps(frontendUrl); publicHttps(backendUrl);
+        requirePublicUrls();
     }
+    /** Every hosted checkout redirects back to the storefront and notifies the API: both must be public HTTPS. */
+    public void requirePublicUrls() { publicHttps(frontendUrl); publicHttps(backendUrl); }
     /** Real money: live seller credentials (MERCADOPAGO_ENVIRONMENT=production). */
     public boolean production() { return "production".equals(environment); }
     private void publicHttps(String value) {

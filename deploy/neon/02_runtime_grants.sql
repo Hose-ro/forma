@@ -3,7 +3,7 @@ BEGIN;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
     users, addresses, categories, products, product_variants, product_images,
     carts, cart_items, orders, order_items, order_addresses,
-    payments, payment_attempts, payment_resources, order_emails, account_tokens
+    payments, payment_attempts, payment_resources, order_emails, account_tokens, account_emails
 TO olvenio_runtime;
 GRANT SELECT, INSERT ON TABLE audit_logs, order_events, payment_events TO olvenio_runtime;
 REVOKE UPDATE, DELETE, TRUNCATE ON TABLE audit_logs, order_events, payment_events FROM olvenio_runtime;

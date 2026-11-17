@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Component;
@@ -34,6 +35,19 @@ public class SecretTokens {
         byte[] bytes = new byte[TOKEN_BYTES];
         random.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    /** Reconstruct a queued account link after a restart without persisting its bearer token. */
+    public String accountMailToken(UUID messageId) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(key);
+            // Domain separation prevents a stored token hash from being usable as an account-link token.
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(
+                    mac.doFinal(("olvenio:account-mail:v1:" + messageId).getBytes(StandardCharsets.UTF_8)));
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("HMAC unavailable", e);
+        }
     }
 
     public String hash(String token) {

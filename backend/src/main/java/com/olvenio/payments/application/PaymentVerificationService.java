@@ -1,6 +1,6 @@
 package com.olvenio.payments.application;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.olvenio.payments.application.port.ProviderCharge;
 import com.olvenio.payments.domain.*;
 import com.olvenio.payments.infrastructure.*;
 import com.olvenio.orders.infrastructure.OrderRepository;
@@ -10,39 +10,34 @@ import java.util.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+/** Applies authoritative provider snapshots, from any gateway, to the payment and its order. */
 @Service
 public class PaymentVerificationService {
     private final PaymentRepository payments;
     private final OrderRepository orders;
-    private final PaymentProperties config;
     private final TransactionTemplate tx;
-    private final MercadoPagoClient client;
-    public PaymentVerificationService(PaymentRepository payments,OrderRepository orders,PaymentProperties config,TransactionTemplate tx,MercadoPagoClient client) {
-        this.payments=payments;this.orders=orders;this.config=config;this.tx=tx;this.client=client;
+    public PaymentVerificationService(PaymentRepository payments,OrderRepository orders,TransactionTemplate tx) {
+        this.payments=payments;this.orders=orders;this.tx=tx;
     }
-    public void apply(JsonNode resource) {
-        UUID reference;
-        try { reference=UUID.fromString(resource.path("external_reference").asText()); }
-        catch (RuntimeException e) { return; } // Resource belongs to another integration.
+    public void apply(ProviderCharge charge) {
+        UUID reference=charge.reference();
+        if (reference==null) return; // Resource belongs to another integration.
         var found=payments.find(reference);
         if (found.isEmpty()) return;
-        // Network account checks stay outside the order/payment row-lock transaction.
-        boolean testAccounts=client.testAccountsVerified(resource);
         tx.executeWithoutResult(t->{
             var order=orders.lockById(found.get().orderId()).orElseThrow();
             Payment payment=payments.lock(reference);
-            String providerId=resource.path("id").asText();
-            String providerStatus=resource.path("status").asText();
-            String version=resource.path("date_last_updated").asText();
+            String providerId=charge.chargeId();
+            String providerStatus=charge.providerStatus();
             // All persisted payloads are explicit allowlists with no customer/card data.
-            if (!verified(resource,payment,config.collectorId(),testAccounts) || (config.production() && !testAccounts) || !providerId.matches("[0-9]{1,100}") || providerStatus.length()>50) {
+            if (!matches(charge,payment) || providerId==null || !providerId.matches("[A-Za-z0-9_-]{1,100}")
+                    || providerStatus==null || providerStatus.length()>50) {
                 payments.event(reference,null,"RESOURCE_MISMATCH","{}","REVIEW");return;
             }
-            Instant updated;
-            try { updated=OffsetDateTime.parse(version).toInstant(); }
-            catch (RuntimeException e) { payments.event(reference,null,"INVALID_RESOURCE_VERSION","{}","REVIEW");return; }
-            BigDecimal refunded=resource.path("transaction_amount_refunded").decimalValue();
-            PaymentStatus next=PaymentStatus.fromProvider(providerStatus,refunded,payment.amount());
+            Instant updated=charge.updatedAt();
+            if (updated==null) { payments.event(reference,null,"INVALID_RESOURCE_VERSION","{}","REVIEW");return; }
+            BigDecimal refunded=charge.refunded();
+            PaymentStatus next=charge.status();
             String eventKey="resource:"+providerId+":"+updated+":"+next;
             var old=payments.db().queryForList("select * from payment_resources where provider_payment_id=?",providerId);
             if (!old.isEmpty()) {
@@ -53,15 +48,28 @@ public class PaymentVerificationService {
                     payments.event(reference,null,"REFUND_AMOUNT_REGRESSION","{}","REVIEW");return;
                 }
                 if (!PaymentStatus.accepts(PaymentStatus.valueOf((String)row.get("status")),previous,next,updated)) return;
+                // Same state read again (reconciliation polls): advance the version, record nothing new.
+                if (next.name().equals(row.get("status")) && refunded.compareTo((BigDecimal)row.get("refunded_amount"))==0
+                        && providerStatus.equals(row.get("provider_status"))) {
+                    payments.db().update("update payment_resources set provider_updated_at=? where provider_payment_id=?",java.sql.Timestamp.from(updated),providerId);
+                    return;
+                }
             }
             payments.db().update("insert into payment_resources(provider_payment_id,payment_id,status,provider_status,provider_updated_at,refunded_amount) values (?,?,?,?,?,?) on conflict(provider_payment_id) do update set status=excluded.status,provider_status=excluded.provider_status,provider_updated_at=excluded.provider_updated_at,refunded_amount=excluded.refunded_amount",providerId,reference,next.name(),providerStatus,java.sql.Timestamp.from(updated),refunded);
             var statuses=payments.db().queryForList("select status from payment_resources where payment_id=?",String.class,reference);
-            // Preserve a successful retry when another resource from the same preference is declined.
+            // Preserve a successful retry when another resource from the same checkout is declined.
             PaymentStatus aggregate=aggregate(statuses,next);
             String effectiveId=payments.db().queryForObject("select provider_payment_id from payment_resources where payment_id=? order by case when status=? then 0 else 1 end,provider_updated_at desc,provider_payment_id limit 1",String.class,reference,aggregate.name());
             payments.db().update("update payments set status=?,provider_payment_id=?,approved_at=case when ?='APPROVED' then coalesce(approved_at,now()) else approved_at end,failure_reason=?,updated_at=now() where id=?",aggregate.name(),effectiveId,aggregate.name(),aggregate==PaymentStatus.UNKNOWN?"PROVIDER_STATUS_REQUIRES_REVIEW":null,reference);
-            order.recordVerifiedPayment(aggregate.name(),Instant.now());
-            payments.event(reference,eventKey,"PAYMENT_VERIFIED","{\"providerStatus\":\""+providerStatus.replaceAll("[^a-z_]","")+"\",\"status\":\""+next+"\",\"testAccountsVerified\":"+testAccounts+",\"providerLiveMode\":"+resource.path("live_mode").asBoolean()+"}","PROCESSED");
+            // Across attempts: a method switch must never hide a second captured payment for the same order.
+            var attemptStates=payments.db().queryForList("select status from payments where order_id=?",String.class,order.getId());
+            PaymentStatus orderStatus=orderAggregate(attemptStates,aggregate);
+            if (captured(attemptStates)>1) payments.event(reference,"duplicate:"+reference+":"+providerId,"DUPLICATE_CHARGE","{}","REVIEW");
+            order.recordVerifiedPayment(orderStatus.name(),Instant.now());
+            // Paid (or in review): any other checkout still open must stop taking money.
+            if (order.getStatus()!=com.olvenio.orders.domain.OrderStatus.PENDING_PAYMENT)
+                payments.db().update("update payments set checkout_closed_at=now(),close_reason='ORDER' where order_id=? and id<>? and checkout_closed_at is null",order.getId(),reference);
+            payments.event(reference,eventKey,"PAYMENT_VERIFIED","{\"providerStatus\":\""+providerStatus.replaceAll("[^A-Za-z_]","")+"\",\"status\":\""+next+"\",\"testAccountsVerified\":"+charge.testAccountsVerified()+",\"providerLiveMode\":"+charge.liveMode()+"}","PROCESSED");
         });
     }
     public static PaymentStatus aggregate(List<String> states,PaymentStatus fallback) {
@@ -71,14 +79,19 @@ public class PaymentVerificationService {
             if(states.contains(s.name())) return s;
         return fallback;
     }
-    public static boolean verified(JsonNode r,Payment p,String collector) {
-        return verified(r,p,collector,false);
+    private static long captured(List<String> states) {
+        return states.stream().filter(s->s.equals("APPROVED") || s.equals("PARTIALLY_REFUNDED")).count();
     }
-    public static boolean verified(JsonNode r,Payment p,String collector,boolean testAccountsVerified) {
-        return r.path("transaction_amount").isNumber() && r.path("transaction_amount").decimalValue().compareTo(p.amount())==0
-            && p.currency().equals(r.path("currency_id").asText()) && p.id().toString().equals(r.path("external_reference").asText())
-            && collector.equals(r.path("collector_id").asText()) && r.path("live_mode").isBoolean() && (!r.path("live_mode").asBoolean() || testAccountsVerified)
-            && r.path("transaction_amount_refunded").isNumber() && r.path("transaction_amount_refunded").decimalValue().signum()>=0
-            && r.path("transaction_amount_refunded").decimalValue().compareTo(p.amount())<=0;
+    /** Financial status of an order from the status of each of its checkout attempts. */
+    public static PaymentStatus orderAggregate(List<String> attemptStates,PaymentStatus fallback) {
+        if (captured(attemptStates)>1) return PaymentStatus.UNKNOWN;
+        return aggregate(attemptStates,fallback);
+    }
+    /** Money, currency, reference, recipient account and environment must all match the local payment. */
+    public static boolean matches(ProviderCharge c,Payment p) {
+        return p.provider().equals(c.provider().name()) && c.accountVerified()
+            && c.amount()!=null && c.amount().compareTo(p.amount())==0
+            && p.currency().equals(c.currency()) && p.id().equals(c.reference())
+            && c.refunded()!=null && c.refunded().signum()>=0 && c.refunded().compareTo(p.amount())<=0;
     }
 }

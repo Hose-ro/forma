@@ -28,6 +28,12 @@ app:
   frontend-origin: ${APP_FRONTEND_ORIGIN}
   payments:
     environment: test
+    stripe:
+      environment: test
+    paypal:
+      environment: test
+    conekta:
+      environment: test
     reconciliation-delay: ${PAYMENTS_RECONCILIATION_DELAY:600000}
 springdoc:
   api-docs:
