@@ -1,27 +1,33 @@
-# FORMA: entorno gratuito de pruebas
+# Olvenio: entorno gratuito de pruebas
 
 Frontend Next.js en Vercel Hobby, Spring Boot en Render Free y PostgreSQL en Neon Free.
 URLs del proveedor, sin comprar dominio y sin túneles locales. Pagos exclusivamente de prueba.
 No se exportan usuarios, pedidos, cookies ni credenciales administrativas de la base local.
 
-## Recursos creados
+## Recursos existentes anteriores al cambio de marca
 
 - Backend: `https://forma-staging-api.onrender.com`.
 - Frontend reservado: `https://forma-staging-ecru.vercel.app` (comprobar estado del despliegue en Vercel).
 - Neon: proyecto `forma-staging`, base `forma_staging`; migraciones y permisos aplicados.
 - Credenciales: `.env.staging.local`, archivo privado ignorado por Git.
 
+Estos identificadores corresponden a recursos existentes; cambiar la marca del código no cambia
+sus URLs ni renombra bases o roles remotos. Para un entorno nuevo, usa `olvenio-staging`,
+`olvenio_staging`, el servicio `olvenio-staging-api` y el rol `olvenio_runtime`.
+Los pasos y scripts siguientes usan esos nombres nuevos. En un entorno existente, conserva
+los valores reales de conexión hasta migrar sus recursos y ajusta el rol de los scripts si procede.
+
 ## 1. Neon
 
-Crea un proyecto gratuito dedicado a FORMA staging, preferentemente en AWS us-west-2
+Crea un proyecto gratuito dedicado a Olvenio staging, preferentemente en AWS us-west-2
 (cerca del backend Render en Oregon). Usa una conexión **directa**, sin `-pooler`, con
 `sslmode=verify-full`. Configura `DATABASE_URL` en formato JDBC, sin usuario ni contraseña:
-`jdbc:postgresql://HOST/forma_staging?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory`.
+`jdbc:postgresql://HOST/olvenio_staging?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory`.
 La fábrica SSL de Java utiliza el almacén de certificados del JRE, sin desactivar la validación
 de certificado ni de hostname.
 
 Usa el propietario del proyecto como rol de migración y crea **mediante SQL** un login independiente
-`forma_runtime`, sin privilegios de administración ni propiedad de tablas. No lo crees con el flujo
+`olvenio_runtime`, sin privilegios de administración ni propiedad de tablas. No lo crees con el flujo
 administrativo de la consola/API: Neon asigna `neon_superuser` a esos roles. Usa una contraseña
 aleatoria privada y concede únicamente los permisos de estos scripts. Guarda ambos
 pares de credenciales solo en Render o en un archivo local ignorado por Git.
@@ -29,13 +35,13 @@ pares de credenciales solo en Render o en un archivo local ignorado por Git.
 Conectado como el migrador, ejecuta `deploy/neon/01_bootstrap.sql` antes del primer arranque.
 Tras el primer arranque y las migraciones, ejecuta `deploy/neon/02_runtime_grants.sql` **antes
 de usar el checkout**. Esto habilita escrituras de negocio y mantiene los historiales append-only.
-Verifica que forma_runtime no tenga rolsuper/rolcreaterole/rolcreatedb/rolbypassrls; el backend
+Verifica que olvenio_runtime no tenga rolsuper/rolcreaterole/rolcreatedb/rolbypassrls; el backend
 rechaza esas configuraciones y rechaza compartir el rol de runtime con Flyway.
 
 ## 2. Vercel: reservar el proyecto
 
 Importa `Hose-ro/forma`, directorio raíz del repositorio, framework Next.js y Node.js 24.
-Usa un proyecto dedicado, por ejemplo `forma-staging`, con su dirección `.vercel.app` asignada.
+Usa un proyecto dedicado, por ejemplo `olvenio-staging`, con su dirección `.vercel.app` asignada.
 Configura únicamente variables de servidor:
 
 - `BACKEND_URL`: origen HTTPS real de Render, sin barra final ni ruta.
@@ -59,7 +65,7 @@ El contenedor compila y ejecuta Java 21 como usuario no root. Define las variabl
 
 El perfil `staging` aplica migraciones, añade catálogo de demostración sin sobrescribir
 productos existentes, exige cookies Secure y separa credenciales de runtime/migración.
-Puede crear el administrador `admin@forma.test` con la contraseña aleatoria de Render.
+Puede crear el administrador `admin@olvenio.test` con la contraseña aleatoria de Render.
 El secreto de sesión también se genera en Render; no cambies esos valores en cada deploy.
 La contraseña generada se consulta en el panel de Render y se conserva fuera de Git.
 

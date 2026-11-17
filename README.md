@@ -1,4 +1,6 @@
-# FORMA.
+# Olvenio
+Dominio de producción: `olvenio.com`; API prevista en `api.olvenio.com` (requiere configurar DNS y hosting).
+
 Tienda de demostración: frontend Next.js (este directorio) + backend Spring Boot/PostgreSQL (`backend/`).
 
 ## Ejecutar en local

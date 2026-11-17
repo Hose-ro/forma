@@ -7,7 +7,7 @@ RUN mvn -B -ntp -Dmaven.test.skip=true package
 
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
-COPY --from=build /build/target/velora-backend-0.1.0-SNAPSHOT.jar /app/app.jar
+COPY --from=build /build/target/olvenio-backend-0.1.0-SNAPSHOT.jar /app/app.jar
 ENV PORT=10000
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -XX:InitialRAMPercentage=15 -XX:+ExitOnOutOfMemoryError"
 USER 10001:10001

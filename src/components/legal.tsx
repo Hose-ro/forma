@@ -38,8 +38,8 @@ const DATA: { icon: LucideIcon; title: string; items: string[] }[] = [
 ];
 
 const COOKIES = [
-  { name: 'VELORA_SESSION', purpose: 'Mantiene tu sesión iniciada.', duration: 'Expira tras 30 min sin actividad' },
-  { name: 'VELORA_GUEST', purpose: 'Recuerda tu bolsa si compras sin cuenta.', duration: '90 días' },
+  { name: 'OLVENIO_SESSION', purpose: 'Mantiene tu sesión iniciada.', duration: 'Expira tras 30 min sin actividad' },
+  { name: 'OLVENIO_GUEST', purpose: 'Recuerda tu bolsa si compras sin cuenta.', duration: '90 días' },
   { name: 'XSRF-TOKEN', purpose: 'Protege los formularios frente a solicitudes falsificadas.', duration: 'Sesión' },
 ];
 
@@ -166,7 +166,7 @@ function LegalDocument({ lines, intro, reading, sections, summary, children }: {
           </p>
         ) : (
           <p>
-            <strong>Tienda de demostración.</strong> FORMA. no vende productos ni cobra pagos reales. Usa siempre datos ficticios.
+            <strong>Tienda de demostración.</strong> Olvenio no vende productos ni cobra pagos reales. Usa siempre datos ficticios.
             Este texto es un modelo de referencia: revísalo con un especialista antes de usarlo en una tienda en operación.
           </p>
         )}
@@ -221,14 +221,14 @@ export function PrivacyNotice() {
   return (
     <LegalDocument
       lines={['Aviso de', <i key="i">privacidad.</i>]}
-      intro="Cómo FORMA. trata la información que compartes al navegar, crear una cuenta o hacer un pedido. Sin letra pequeña: lo que recabamos, para qué y cómo puedes decidir sobre ello."
+      intro="Cómo Olvenio trata la información que compartes al navegar, crear una cuenta o hacer un pedido. Sin letra pequeña: lo que recabamos, para qué y cómo puedes decidir sobre ello."
       reading="6 minutos"
       sections={SECTIONS}
       summary={SUMMARY}
     >
             <Section id="responsable" index={1} title={<>Quién es <i>responsable.</i></>}>
               <p>
-                FORMA. es responsable del tratamiento de los datos personales que se recaban en este sitio, de conformidad con la
+                Olvenio es responsable del tratamiento de los datos personales que se recaban en este sitio, de conformidad con la
                 Ley Federal de Protección de Datos Personales en Posesión de los Particulares vigente en México y su normativa aplicable.
               </p>
               <dl className="legal-facts">
@@ -349,10 +349,10 @@ export function PrivacyNotice() {
                   : 'Este sitio es un proyecto de demostración. Los productos, precios, inventarios y proveedores son ficticios: crear un pedido no constituye una compra, no genera cargos y no da lugar a entregas.'}
               </p>
               <p>
-                El diseño, los textos y la marca FORMA. pertenecen a sus autores. {LIVE ? 'Las fotografías son de referencia.' : 'Las fotografías son ilustrativas y provienen de Unsplash bajo su licencia.'} Queda prohibida la reproducción del contenido con fines comerciales sin autorización.
+                El diseño, los textos y la marca Olvenio pertenecen a sus autores. {LIVE ? 'Las fotografías son de referencia.' : 'Las fotografías son ilustrativas y provienen de Unsplash bajo su licencia.'} Queda prohibida la reproducción del contenido con fines comerciales sin autorización.
               </p>
               <p>
-                FORMA. no se hace responsable del uso que se dé a la información ingresada en contra de estas indicaciones. Este aviso se
+                Olvenio no se hace responsable del uso que se dé a la información ingresada en contra de estas indicaciones. Este aviso se
                 rige por las leyes de los Estados Unidos Mexicanos. Consulta también los{' '}
                 <Link className="legal-inline-link" href="/policies/terms">Términos de uso</Link> y la política de{' '}
                 <Link className="legal-inline-link" href="/policies/shipping">Envíos y devoluciones</Link>.
@@ -391,19 +391,19 @@ const COOKIE_SECTIONS = [
 const COOKIE_SUMMARY: SummaryItem[] = [
   { icon: Cookie, title: 'Solo esenciales', text: 'Tres cookies técnicas para tu sesión, tu bolsa y tus formularios.' },
   { icon: EyeOff, title: 'Sin rastreo', text: 'Ni analítica, ni publicidad, ni píxeles de redes sociales.' },
-  { icon: HardDrive, title: 'Propias', text: 'Todas las establece FORMA. en su propio dominio.' },
+  { icon: HardDrive, title: 'Propias', text: 'Todas las establece Olvenio en su propio dominio.' },
   { icon: Settings2, title: 'Bajo tu control', text: 'Puedes borrarlas cuando quieras desde tu navegador.' },
 ];
 
 const COOKIE_DETAILS = [
-  { name: 'VELORA_SESSION', purpose: 'Mantiene tu sesión iniciada mientras navegas por tu cuenta y tus pedidos.', duration: 'Caduca tras 30 min sin actividad', flags: ['Técnica', 'Propia', 'HttpOnly'] },
-  { name: 'VELORA_GUEST', purpose: 'Recuerda tu bolsa de compra cuando compras sin iniciar sesión.', duration: '90 días', flags: ['Técnica', 'Propia', 'HttpOnly', 'SameSite=Lax'] },
+  { name: 'OLVENIO_SESSION', purpose: 'Mantiene tu sesión iniciada mientras navegas por tu cuenta y tus pedidos.', duration: 'Caduca tras 30 min sin actividad', flags: ['Técnica', 'Propia', 'HttpOnly'] },
+  { name: 'OLVENIO_GUEST', purpose: 'Recuerda tu bolsa de compra cuando compras sin iniciar sesión.', duration: '90 días', flags: ['Técnica', 'Propia', 'HttpOnly', 'SameSite=Lax'] },
   { name: 'XSRF-TOKEN', purpose: 'Comprueba que los formularios que envías salen de este sitio y no de uno malicioso.', duration: 'Hasta cerrar el navegador', flags: ['Técnica', 'Propia', 'Seguridad'] },
 ];
 
 const STORAGE = [
-  { name: 'forma-prefs-v1', purpose: 'Guarda la preferencia del mensaje que aparece en el pie de página.', duration: 'Hasta que la borres' },
-  { name: 'forma-cookie-notice-v1', purpose: 'Recuerda que ya cerraste el aviso de cookies para no volver a mostrarlo.', duration: 'Hasta que la borres' },
+  { name: 'olvenio-prefs-v1', purpose: 'Guarda la preferencia del mensaje que aparece en el pie de página.', duration: 'Hasta que la borres' },
+  { name: 'olvenio-cookie-notice-v1', purpose: 'Recuerda que ya cerraste el aviso de cookies para no volver a mostrarlo.', duration: 'Hasta que la borres' },
 ];
 
 const NOT_USED: { icon: LucideIcon; title: string; text: string }[] = [
@@ -425,7 +425,7 @@ export function CookiePolicy() {
   return (
     <LegalDocument
       lines={['Aviso de', <i key="i">cookies.</i>]}
-      intro="Qué guarda FORMA. en tu navegador, para qué sirve cada cosa y cómo puedes borrarlo. Spoiler: solo lo imprescindible para que la tienda funcione."
+      intro="Qué guarda Olvenio en tu navegador, para qué sirve cada cosa y cómo puedes borrarlo. Spoiler: solo lo imprescindible para que la tienda funcione."
       reading="4 minutos"
       sections={COOKIE_SECTIONS}
       summary={COOKIE_SUMMARY}
@@ -437,7 +437,7 @@ export function CookiePolicy() {
         </p>
         <p>
           Algunas son <strong>técnicas</strong>, imprescindibles para que el sitio funcione, y otras sirven para analizar tu
-          comportamiento o mostrarte publicidad. En FORMA. solo usamos las primeras, por lo que no necesitamos pedirte consentimiento
+          comportamiento o mostrarte publicidad. En Olvenio solo usamos las primeras, por lo que no necesitamos pedirte consentimiento
           para instalarlas, pero sí explicarte cuáles son.
         </p>
       </Section>
@@ -527,7 +527,7 @@ export function CookiePolicy() {
       </Section>
 
       <Section id="gestionar" index={6} title={<>Cómo <i>gestionarlas.</i></>}>
-        <p>Puedes ver y borrar las cookies y el almacenamiento local de FORMA. desde la configuración de tu navegador:</p>
+        <p>Puedes ver y borrar las cookies y el almacenamiento local de Olvenio desde la configuración de tu navegador:</p>
         <div className="cookie-browsers">
           {BROWSERS.map((b, i) => (
             <Reveal key={b.name} delay={i * 0.06} className="cookie-browser">
@@ -566,8 +566,8 @@ export function CookiePolicy() {
 
 /* ---------- Banner informativo ---------- */
 
-const NOTICE_KEY = 'forma-cookie-notice-v1';
-const NOTICE_EVENT = 'forma:cookie-notice';
+const NOTICE_KEY = 'olvenio-cookie-notice-v1';
+const NOTICE_EVENT = 'olvenio:cookie-notice';
 
 export function CookieNotice() {
   const reduced = useReducedMotion();

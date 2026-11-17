@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: forma-staging-api
+    name: olvenio-staging-api
     runtime: docker
     plan: free
     region: oregon
@@ -25,13 +25,13 @@ services:
       - key: APP_SESSION_SECRET
         generateValue: true
       - key: APP_ADMIN_EMAIL
-        value: admin@forma.test
+        value: admin@olvenio.test
       - key: APP_ADMIN_PASSWORD
         generateValue: true
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_USERNAME
-        value: forma_runtime
+        value: olvenio_runtime
       - key: DATABASE_PASSWORD
         sync: false
       - key: DATABASE_MIGRATION_USERNAME
