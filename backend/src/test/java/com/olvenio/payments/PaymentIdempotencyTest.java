@@ -30,7 +30,7 @@ class PaymentIdempotencyTest {
     private PaymentService service(){
         var config=new PaymentProperties("token","secret","test","123","https://front.example","https://back.example");
         var gateways=new PaymentGateways(List.of(new MercadoPagoGateway(client,config)));
-        return new PaymentService(orders,payments,gateways,new CheckoutCloser(payments,gateways,mock(PaymentVerificationService.class)),tokens,tx);
+        return new PaymentService(orders,payments,gateways,new CheckoutCloser(payments,gateways,mock(PaymentVerificationService.class)),mock(PaymentVerificationService.class),tokens,tx);
     }
     private UUID setup(String token,PaymentStatus status,String url){
         UUID id=UUID.randomUUID();var now=Instant.now();

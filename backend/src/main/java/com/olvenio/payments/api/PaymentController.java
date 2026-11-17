@@ -46,6 +46,11 @@ public class PaymentController {
         Payment p=service.preference(body.orderId(),key,guest.resolve(token,request));
         return new PreferenceView(p.id(),p.checkoutUrl());
     }
+    /** Return page of a hosted checkout. For PayPal this is where the approved payment is captured. */
+    @PostMapping("/api/v1/payments/{paymentId}/confirm")
+    public Payment confirm(@PathVariable UUID paymentId,@RequestHeader(value="X-Order-Token",required=false) String token,HttpServletRequest request) {
+        return service.confirm(paymentId,guest.resolve(token,request));
+    }
     @GetMapping("/api/v1/payments/orders/{orderId}")
     public Payment status(@PathVariable UUID orderId,@RequestHeader(value="X-Order-Token",required=false) String token,HttpServletRequest request) {
         return service.get(orderId,guest.resolve(token,request));

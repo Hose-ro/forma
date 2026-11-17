@@ -58,7 +58,10 @@ public class SecurityConfig {
                 .addFilterBefore(new ApiRequestFilter(limits, objectMapper, proxySecret, revocations), CsrfFilter.class)
                 .cors(Customizer.withDefaults())
                 .csrf(c -> c.csrfTokenRepository(csrfTokenRepository).csrfTokenRequestHandler(csrfHandler)
-                        .ignoringRequestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/v1/webhooks/mercadopago", "POST")))
+                        .ignoringRequestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/v1/webhooks/mercadopago", "POST"),
+                                new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/v1/webhooks/stripe", "POST"),
+                                new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/v1/webhooks/paypal", "POST"),
+                                new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/v1/webhooks/conekta", "POST")))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .sessionFixation(f -> f.changeSessionId()))
                 .securityContext(sc -> sc.securityContextRepository(securityContextRepository))
@@ -86,7 +89,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/email/verification").authenticated()
                         // Guest-capable: ownership/token checks are enforced in the application layer.
                         .requestMatchers("/api/v1/carts/**", "/api/v1/checkout/**", "/api/v1/orders/**", "/api/v1/payments/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/mercadopago").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/mercadopago", "/api/v1/webhooks/stripe", "/api/v1/webhooks/paypal", "/api/v1/webhooks/conekta").permitAll()
                         .anyRequest().denyAll());
         return http.build();
     }

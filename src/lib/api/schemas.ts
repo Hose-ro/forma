@@ -87,6 +87,9 @@ export const dashboardSchema = z.object({
 export const csrfSchema = z.object({ headerName: z.string(), token: z.string() });
 
 export const preferenceSchema = z.object({paymentId:z.string(),checkoutUrl:z.url()});
+export const paymentProviderSchema = z.enum(['MERCADO_PAGO','STRIPE','PAYPAL','CONEKTA']);
+export const paymentMethodsSchema = z.array(z.object({provider:paymentProviderSchema}));
+export const checkoutSessionSchema = z.object({paymentId:z.string(),provider:paymentProviderSchema,checkoutUrl:z.url()});
 export const paymentSchema = z.object({
   id:z.string(),orderId:z.string(),provider:z.string(),status:z.enum(['CREATED','PENDING','IN_PROCESS','APPROVED','REJECTED','CANCELLED','REFUNDED','PARTIALLY_REFUNDED','UNKNOWN']),
   amount:z.number(),currency:z.string(),providerPaymentId:z.string().nullish(),providerPreferenceId:z.string().nullish(),createdAt:z.string(),approvedAt:z.string().nullish(),failureReason:z.string().nullish(),

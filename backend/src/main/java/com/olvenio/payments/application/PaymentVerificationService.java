@@ -48,6 +48,12 @@ public class PaymentVerificationService {
                     payments.event(reference,null,"REFUND_AMOUNT_REGRESSION","{}","REVIEW");return;
                 }
                 if (!PaymentStatus.accepts(PaymentStatus.valueOf((String)row.get("status")),previous,next,updated)) return;
+                // Same state read again (reconciliation polls): advance the version, record nothing new.
+                if (next.name().equals(row.get("status")) && refunded.compareTo((BigDecimal)row.get("refunded_amount"))==0
+                        && providerStatus.equals(row.get("provider_status"))) {
+                    payments.db().update("update payment_resources set provider_updated_at=? where provider_payment_id=?",java.sql.Timestamp.from(updated),providerId);
+                    return;
+                }
             }
             payments.db().update("insert into payment_resources(provider_payment_id,payment_id,status,provider_status,provider_updated_at,refunded_amount) values (?,?,?,?,?,?) on conflict(provider_payment_id) do update set status=excluded.status,provider_status=excluded.provider_status,provider_updated_at=excluded.provider_updated_at,refunded_amount=excluded.refunded_amount",providerId,reference,next.name(),providerStatus,java.sql.Timestamp.from(updated),refunded);
             var statuses=payments.db().queryForList("select status from payment_resources where payment_id=?",String.class,reference);

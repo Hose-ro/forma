@@ -22,14 +22,15 @@ public class PaymentService {
     private final PaymentRepository payments;
     private final PaymentGateways gateways;
     private final CheckoutCloser closer;
+    private final PaymentVerificationService verification;
     private final SecretTokens tokens;
     private final TransactionTemplate tx;
     /** Only used for orders placed before reservations had an explicit expiry. */
     @Value("${app.checkout.reservation-ttl:24h}")
     private Duration reservationTtl = Duration.ofHours(24);
     public PaymentService(OrderRepository orders,PaymentRepository payments,PaymentGateways gateways,
-            CheckoutCloser closer,SecretTokens tokens,TransactionTemplate tx) {
-        this.orders=orders;this.payments=payments;this.gateways=gateways;this.closer=closer;this.tokens=tokens;this.tx=tx;
+            CheckoutCloser closer,PaymentVerificationService verification,SecretTokens tokens,TransactionTemplate tx) {
+        this.orders=orders;this.payments=payments;this.gateways=gateways;this.closer=closer;this.verification=verification;this.tokens=tokens;this.tx=tx;
     }
     private Order authorize(UUID id,String token) {
         Order o=orders.lockById(id).orElseThrow(()->new NotFoundException("Order not found"));
@@ -39,6 +40,26 @@ public class PaymentService {
     }
     public Payment get(UUID order,String token) {
         return tx.execute(t->{authorize(order,token);return payments.latestByOrder(order).orElseThrow(()->new NotFoundException("Payment not found"));});
+    }
+    /** The buyer came back from the provider: finish the checkout if the provider needs it, then read its charges. */
+    public Payment confirm(UUID paymentId,String token) { return confirm(paymentId,token,false); }
+    /** The provider reported the buyer's approval (e.g. the buyer closed the tab before returning). */
+    public void confirmFromProvider(UUID paymentId) { confirm(paymentId,null,true); }
+    private Payment confirm(UUID paymentId,String token,boolean system) {
+        Payment found=payments.find(paymentId).orElseThrow(()->new NotFoundException("Payment not found"));
+        PaymentGateway gateway=gateways.get(found.provider());
+        tx.executeWithoutResult(t->{
+            Order o=system?orders.lockById(found.orderId()).orElseThrow():authorize(found.orderId(),token);
+            // The order lock is held through the provider call. Closing takes the same lock first, so it either
+            // prevents the completion or sees its result when it re-reads the charges.
+            if (o.getStatus()!=OrderStatus.PENDING_PAYMENT) return;
+            if (o.getReservationExpiresAt()!=null && !o.getReservationExpiresAt().isAfter(Instant.now())) return;
+            payments.lock(paymentId);
+            if (payments.checkoutClosed(paymentId)) return;
+            gateway.complete(payments.find(paymentId).orElseThrow());
+        });
+        gateway.forEachCharge(payments.find(paymentId).orElseThrow(),null,verification::apply);
+        return payments.find(paymentId).orElseThrow();
     }
     /** Legacy entry point of the Mercado Pago-only checkout. */
     public Payment preference(UUID order,String key,String token) {
@@ -163,7 +184,8 @@ public class PaymentService {
                 requirePayable(current);
                 payments.lock(p.id());
                 requireCheckoutOpen(p.id());
-                return storeLocked(p,gateway.create(p,expires),"PREFERENCE_READY");
+                var buyer=new CheckoutBuyer((current.getCustomerFirstName()+" "+current.getCustomerLastName()).trim(),current.getEmail(),current.getCustomerPhone());
+                return storeLocked(p,gateway.create(p,expires,buyer),"PREFERENCE_READY");
             });
         } catch (ConflictException e) {
             throw e;

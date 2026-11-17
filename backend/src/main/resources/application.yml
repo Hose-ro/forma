@@ -96,3 +96,20 @@ app:
     collector-id: ${MERCADOPAGO_COLLECTOR_ID:}
     frontend-url: ${APP_PUBLIC_FRONTEND_URL:}
     backend-url: ${APP_PUBLIC_BACKEND_URL:}
+    # Optional. Enabled when a secret key is set; test mode needs sk_test_/rk_test_, production sk_live_/rk_live_.
+    stripe:
+      secret-key: ${STRIPE_SECRET_KEY:}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+      environment: ${STRIPE_ENVIRONMENT:test}
+    # Optional. Enabled when client id and secret are set; test = sandbox app, production = live app.
+    paypal:
+      client-id: ${PAYPAL_CLIENT_ID:}
+      client-secret: ${PAYPAL_CLIENT_SECRET:}
+      webhook-id: ${PAYPAL_WEBHOOK_ID:}
+      environment: ${PAYPAL_ENVIRONMENT:test}
+    # Optional. Enabled when a private key is set. methods: bank_transfer (SPEI, default), cash, card.
+    conekta:
+      private-key: ${CONEKTA_PRIVATE_KEY:}
+      webhook-public-key: ${CONEKTA_WEBHOOK_PUBLIC_KEY:}
+      environment: ${CONEKTA_ENVIRONMENT:test}
+      methods: ${CONEKTA_METHODS:bank_transfer}
