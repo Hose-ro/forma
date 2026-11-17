@@ -30,7 +30,8 @@ class WebhookSignatureTest {
     }
     @Test void invalidNotificationDoesNotCallProviderOrChangePayment() {
         var client=mock(MercadoPagoClient.class);var verification=mock(PaymentVerificationService.class);
-        var service=new PaymentWebhookService(new PaymentProperties("token","test-secret","test","123","https://front.example","https://api.example"),client,verification);
+        var config=new PaymentProperties("token","test-secret","test","123","https://front.example","https://api.example");
+        var service=new PaymentWebhookService(config,new MercadoPagoGateway(client,config),verification);
         assertThatThrownBy(()->service.receive(null,"req","123","payment")).isInstanceOf(PaymentWebhookService.InvalidSignatureException.class);
         verifyNoInteractions(client,verification);
     }

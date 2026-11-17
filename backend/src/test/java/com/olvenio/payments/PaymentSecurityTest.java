@@ -28,12 +28,16 @@ class PaymentSecurityTest {
     @MockitoBean GuestSession guest;
     @MockitoBean PaymentWebhookService webhook;
     @MockitoBean UserDetailsService users;
+    @MockitoBean PaymentGateways gateways;
     @Test void onlyWebhookIsExemptFromCsrf() throws Exception {
         mvc.perform(post("/api/v1/webhooks/mercadopago").param("data.id","123").param("type","payment"))
             .andExpect(status().isOk());
         verify(webhook).receive(null,null,"123","payment");
         mvc.perform(post("/api/v1/payments/mercadopago/preference").contentType("application/json")
             .header("Idempotency-Key","payment-key-12345678").content("{\"orderId\":\"11111111-1111-1111-1111-111111111111\"}"))
+            .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/payments/checkout").contentType("application/json")
+            .header("Idempotency-Key","payment-key-12345678").content("{\"orderId\":\"11111111-1111-1111-1111-111111111111\",\"provider\":\"STRIPE\"}"))
             .andExpect(status().isForbidden());
         verifyNoInteractions(service);
     }

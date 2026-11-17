@@ -32,7 +32,7 @@ class MercadoPagoSandboxIntegrationTest {
         boolean testAccounts=client.testAccountsVerified(resource);
         assertThat(testAccounts).isTrue();
         assertThat(resource.path("status").asText()).isEqualTo("approved");
-        assertThat(com.olvenio.payments.application.PaymentVerificationService.verified(resource,expected,config.collectorId(),testAccounts)).isTrue();
+        assertThat(com.olvenio.payments.application.PaymentVerificationService.matches(MercadoPagoGateway.toCharge(resource,config.collectorId(),false,testAccounts),expected)).isTrue();
     }
 
 }
