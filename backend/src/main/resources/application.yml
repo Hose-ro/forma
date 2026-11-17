@@ -16,6 +16,9 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # The role the application connects with; migrations grant it the tables they create.
+    placeholders:
+      runtimeRole: ${DATABASE_USERNAME:olvenio}
   mvc:
     problemdetails:
       enabled: true
