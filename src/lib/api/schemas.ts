@@ -39,7 +39,7 @@ export const cartSchema = z.object({
 
 export const userSchema = z.object({
   id: z.string(), email: z.string(), firstName: z.string(), lastName: z.string(), phone: z.string().nullish(),
-  role: z.enum(['CUSTOMER', 'ADMIN']), createdAt: z.string(),
+  role: z.enum(['CUSTOMER', 'ADMIN']), createdAt: z.string(), emailVerified: z.boolean().optional(),
 });
 
 const orderStatus = z.enum(['DRAFT', 'PENDING_PAYMENT', 'PAID', 'PAYMENT_REVIEW', 'REFUNDED', 'PARTIALLY_REFUNDED', 'CANCELLED']);
@@ -82,6 +82,7 @@ export const adminProductPageSchema = page(adminProductSchema);
 export const deleteResultSchema = z.object({ id: z.string(), outcome: z.enum(['DELETED', 'ARCHIVED']) });
 export const dashboardSchema = z.object({
   totalProducts: z.number(), activeProducts: z.number(), registeredOrders: z.number(), pendingOrders: z.number(),
+  unitsByCategory: z.array(z.object({ name: z.string(), units: z.number() })),
 });
 export const csrfSchema = z.object({ headerName: z.string(), token: z.string() });
 

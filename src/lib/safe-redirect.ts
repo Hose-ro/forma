@@ -4,7 +4,7 @@ export function safeRedirect(value: string): string | null {
   try {
     const decoded = decodeURIComponent(value);
     if (decoded.startsWith('//') || /[\\\u0000-\u0020\u007f]/.test(decoded)) return null;
-    const url = new URL(value, 'https://velora.invalid');
-    return url.origin === 'https://velora.invalid' ? url.pathname + url.search + url.hash : null;
+    const url = new URL(value, 'https://olvenio.invalid');
+    return url.origin === 'https://olvenio.invalid' ? url.pathname + url.search + url.hash : null;
   } catch { return null; }
 }

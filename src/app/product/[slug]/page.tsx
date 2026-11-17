@@ -4,12 +4,13 @@ import { ProductDetail } from '@/components/product-detail';
 import type { Metadata } from 'next';
 import { catalogRepository } from '@/lib/catalog';
 import { pageMetadata, snippet } from '@/lib/seo';
+import { LIVE } from '@/lib/business';
 const find=cache((slug:string)=>catalogRepository.find(slug));
 export async function generateMetadata({params}:{params:Promise<{slug:string}>}):Promise<Metadata>{
   const {slug}=await params;const product=await find(slug);
   if(!product)return {}; // The page calls notFound(): not-found.tsx sets the title and Next.js adds noindex.
   // Products without copy still get a specific description instead of the site-wide one.
-  const fallback=`${product.name}${product.material?` en ${product.material.toLowerCase()}`:''}. Una pieza de ${product.category.toLowerCase()} de la colección FORMA. Tienda de demostración.`;
+  const fallback=`${product.name}${product.material?` en ${product.material.toLowerCase()}`:''}. Una pieza de ${product.category.toLowerCase()} de la colección Olvenio.${LIVE?'':' Tienda de demostración.'}`;
   return pageMetadata({title:product.name,description:snippet(product.description||fallback),path:`/product/${product.slug}`,image:{url:product.images[0],alt:product.name}});
 }
 export default async function Page({params}:{params:Promise<{slug:string}>}){const {slug}=await params;const product=await find(slug);if(!product)notFound();

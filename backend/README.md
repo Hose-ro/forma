@@ -1,11 +1,11 @@
-# FORMA backend
+# Olvenio backend
 
 Java 21 · Spring Boot 3.5 · PostgreSQL · Flyway. Monolito modular (`identity`, `catalog`, `cart`, `checkout`, `orders`, `admin`, `shared`).
 
 ## Ejecutar en local
 
 ```sh
-createdb velora                      # PostgreSQL 13+, con rol local configurado
+createdb olvenio                      # PostgreSQL 13+, con rol local configurado
 cp .env.example .env                 # ajusta valores
 # Configura APP_SESSION_SECRET con un valor aleatorio (openssl rand -base64 48).
 set -a; source .env; set +a
@@ -19,9 +19,9 @@ mvn spring-boot:run                  # perfil dev: migraciones + datos de demo +
 ## Integración con Next.js
 
 - El frontend proxya `/api/v1/*` hacia este backend (`BACKEND_URL` en la raíz), así que el navegador solo habla con su propio origen.
-- Sesión en cookie `VELORA_SESSION` (HttpOnly, SameSite=Lax, Secure con `APP_COOKIE_SECURE=true`). `GET /auth/session` devuelve 204 sin sesión.
+- Sesión en cookie `OLVENIO_SESSION` (HttpOnly, SameSite=Lax, Secure con `APP_COOKIE_SECURE=true`). `GET /auth/session` devuelve 204 sin sesión.
 - CSRF: `GET /api/v1/auth/csrf` → enviar `X-XSRF-TOKEN` en POST/PATCH/DELETE. El token rota tras login/logout.
-- Invitados: cookie HttpOnly `VELORA_GUEST` (se emite al crear carrito o cotización). Identifica el carrito y los pedidos de invitado; en la base solo se guarda su HMAC. Clientes no navegador pueden enviar el mismo valor en `X-Cart-Token` / `X-Order-Token`.
+- Invitados: cookie HttpOnly `OLVENIO_GUEST` (se emite al crear carrito o cotización). Identifica el carrito y los pedidos de invitado; en la base solo se guarda su HMAC. Clientes no navegador pueden enviar el mismo valor en `X-Cart-Token` / `X-Order-Token`.
 - Checkout: `POST /checkout/quotes` → `POST /orders` con `Idempotency-Key`.
 - Pagos de prueba: Checkout Pro; solo el estado consultado y validado con la API de Mercado Pago puede marcar un pedido como `PAID`.
 
@@ -40,4 +40,4 @@ Conciliación: cada minuto, lotes de 5, lease PostgreSQL de 2 minutos, hasta 96 
 
 Endpoints adicionales: `POST /api/v1/payments/mercadopago/preference` (`{orderId}`, `Idempotency-Key`, CSRF); `GET /api/v1/payments/orders/{orderId}`; `POST /api/v1/webhooks/mercadopago` (firma, única excepción CSRF); `GET /api/v1/admin/payments?page=0`; `GET /api/v1/admin/payments/orders/{orderId}`. Lecturas de cliente requieren propietario, cookie de invitado o `X-Order-Token`; administración requiere ADMIN.
 
-Referencias oficiales: [preferencias](https://www.mercadopago.com.mx/developers/en/docs/checkout-pro-preferences/create-payment-preference), [firma y notificaciones](https://www.mercadopago.com.mx/developers/en/docs/checkout-pro-preferences/payment-notifications), [validador oficial Java](https://github.com/mercadopago/sdk-java/blob/master/src/main/java/com/mercadopago/webhook/WebhookSignatureValidator.java), [compras de prueba](https://www.mercadopago.com.mx/developers/en/docs/checkout-pro-preferences/integration-test/test-purchases). Reembolsos futuros deberán usar la API oficial e idempotencia propia; no hay endpoint de escritura de reembolsos en VELORA.
+Referencias oficiales: [preferencias](https://www.mercadopago.com.mx/developers/en/docs/checkout-pro-preferences/create-payment-preference), [firma y notificaciones](https://www.mercadopago.com.mx/developers/en/docs/checkout-pro-preferences/payment-notifications), [validador oficial Java](https://github.com/mercadopago/sdk-java/blob/master/src/main/java/com/mercadopago/webhook/WebhookSignatureValidator.java), [compras de prueba](https://www.mercadopago.com.mx/developers/en/docs/checkout-pro-preferences/integration-test/test-purchases). Reembolsos futuros deberán usar la API oficial e idempotencia propia; no hay endpoint de escritura de reembolsos en Olvenio.

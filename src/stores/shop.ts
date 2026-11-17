@@ -59,6 +59,7 @@ export const useShop = create<ShopState>()(persist((set, get) => {
     async init() {
       if (started) return;
       started = true;
+      // Remove browser data from the original demo; this is a legacy key, not the current brand.
       try { localStorage.removeItem('forma-demo-v1'); } catch { /* storage unavailable */ }
       await Promise.all([
         api.get('/auth/session', userSchema).then(user => set({ user: user ?? null }), () => set({ user: null })).finally(() => set({ sessionReady: true })),
@@ -96,4 +97,4 @@ export const useShop = create<ShopState>()(persist((set, get) => {
     },
     setAnnouncement: announcement => set({ announcement }),
   };
-}, { name: 'forma-prefs-v1', storage: createJSONStorage(() => localStorage), partialize: ({ announcement }) => ({ announcement }) }));
+}, { name: 'olvenio-prefs-v1', storage: createJSONStorage(() => localStorage), partialize: ({ announcement }) => ({ announcement }) }));

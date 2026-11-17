@@ -21,7 +21,7 @@ Inventario pendiente: Spring MVC 6.2.19 aparece en [CVE-2026-47884](https://spri
 y [CVE-2026-47890](https://spring.io/security/cve-2026-47890/) (SSE con fragmentos). No hay vistas XSLT, mapeos de vistas `/**`,
 SSE ni fragmentos de vistas en este backend REST. Los avisos consultados ofrecen
 parches OSS en Framework 7.0.9; no se fuerza una migración incompatible de Spring Boot.
-Spring Security 6.5.11 también requiere seguimiento del proveedor; VELORA no usa
+Spring Security 6.5.11 también requiere seguimiento del proveedor; Olvenio no usa
 DPoP, WebAuthn, Authorization Server ni AesBytesEncryptor mencionados en sus avisos.
 Revisar soporte/parches de estas líneas antes de producción y antes de agregar esas funciones.
 
@@ -33,18 +33,24 @@ Revisar soporte/parches de estas líneas antes de producción y antes de agregar
   el entorno de auditoría dispone de JDK 25 y compila con `--release 21`.
 - Definir `DATABASE_*` y `DATABASE_MIGRATION_*`. Flyway usa un rol DDL distinto;
   el runtime no puede ser superusuario, crear roles/bases ni omitir RLS. El arranque lo comprueba.
-  Provisionar permisos solo en tablas/secuencias de VELORA: SELECT/INSERT/UPDATE/DELETE
+  Provisionar permisos solo en tablas/secuencias de Olvenio: SELECT/INSERT/UPDATE/DELETE
   donde corresponda, sin DDL ni propiedad de esquema. Auditoría e historial deben ser
   append-only para el runtime; configurar esos GRANT/REVOKE antes de producción.
 - V8 invalida cotizaciones antiguas sin revisión; los pedidos históricos se conservan.
   Probar migraciones en copia de la base y realizar respaldo antes de aplicarlas.
 - Rate limiting y sesiones viven en memoria por instancia; reiniciar borra sus contadores/sesiones.
-  El proxy Next agrupa clientes bajo su IP: los límites por IP son compartidos, además de los
-  límites por cuenta. Configurar límites en el ingreso con IP confiable antes de escalar;
-  no habilitar confianza indiscriminada en X-Forwarded-For. Restringir el acceso directo al backend.
-- Registro mantiene respuesta 409 para correo existente; revela existencia de cuenta.
-  Eliminar esa señal por completo requiere cambiar el flujo actual mediante verificación de correo.
-  Login conserva errores genéricos y límites por cuenta/IP. No existe recuperación de contraseña.
+  Con `APP_PROXY_SECRET` (= `BACKEND_PROXY_SECRET` del frontend) el límite usa la dirección del visitante que
+  informa el proxy Next en `X-Olvenio-Client-Ip`; esa cabecera solo se acepta junto al secreto, así que quien
+  llegue directo al backend no puede falsificarla y queda limitado por su dirección de transporte.
+  `X-Forwarded-For` sigue sin confiarse. Sin el secreto, los clientes del proxy comparten un único límite.
+  Pendiente de validar con varios clientes en el hosting real.
+- Registro mantiene respuesta 409 para correo existente; revela existencia de cuenta (limitado a 5 intentos
+  por 15 min). Eliminar esa señal exige que el registro deje de iniciar sesión de inmediato.
+  Login conserva errores genéricos y límites por cuenta/IP.
+- Recuperación de contraseña y verificación de correo: enlaces de un solo uso (30 min / 48 h), solo se guarda
+  el HMAC del token, la respuesta es idéntica exista o no la cuenta, y restablecer la contraseña cierra las
+  sesiones abiertas (registro en memoria, igual que las sesiones). La verificación no bloquea compras.
+  No hay MFA para administración.
 - La CSP usa nonces y renderizado dinámico; mantiene estilos inline para Motion/GSAP.
   Las imágenes remotas solo se optimizan desde `IMAGE_ALLOWED_HOSTS` explícitos.
 - No se detectaron credenciales reales en el código/historial accesible (un commit);
@@ -74,6 +80,6 @@ Rutas relativas a la raíz del proyecto; `.env` solo cambia de permisos a 0600.
 | Recursos | `backend/src/main/resources/application.yml`, `application-dev.yml`, `application-prod.yml`, `db/migration/V8__security_integrity.sql` |
 | Pruebas Java | `shared/ResourceAccessTest.java`, `shared/SecurityRegressionTest.java`, `shared/RequestLimitsTest.java`, `shared/ResourceBoundaryTest.java`, `shared/ProductionSecurityCheckTest.java`, `orders/IdempotencyTest.java` |
 
-Las rutas Java de producción parten de `backend/src/main/java/com/velora/`;
-las pruebas parten de `backend/src/test/java/com/velora/` y los recursos de `backend/src/main/resources/`.
+Las rutas Java de producción parten de `backend/src/main/java/com/olvenio/`;
+las pruebas parten de `backend/src/test/java/com/olvenio/` y los recursos de `backend/src/main/resources/`.
 El directorio backend ya estaba sin seguimiento en Git al comenzar; debe incluirse al versionar el trabajo.

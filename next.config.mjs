@@ -21,6 +21,8 @@ if (imageHosts.some(host => !/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/i.test(host))) {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // The admin editor validates photo URLs against the same allow-list next/image enforces.
+  env: { NEXT_PUBLIC_IMAGE_HOSTS: imageHosts.join(',') },
   images: {
     remotePatterns: imageHosts.map(hostname => ({ protocol: 'https', hostname, port: '', pathname: '/**' })),
     dangerouslyAllowSVG: false,

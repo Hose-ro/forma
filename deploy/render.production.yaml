@@ -2,7 +2,7 @@
 # so it never shares credentials, database or Mercado Pago account with staging (render.yaml).
 services:
   - type: web
-    name: forma-api
+    name: olvenio-api
     runtime: docker
     plan: starter # an always-on plan: free instances sleep and delay Mercado Pago webhooks
     region: oregon
@@ -20,6 +20,9 @@ services:
         value: "true"
       - key: APP_SESSION_SECRET
         generateValue: true
+      # Same value as BACKEND_PROXY_SECRET in Vercel (32+ characters).
+      - key: APP_PROXY_SECRET
+        sync: false
       # First start only: creates the admin. Delete APP_ADMIN_PASSWORD afterwards.
       - key: APP_ADMIN_EMAIL
         sync: false
@@ -36,13 +39,13 @@ services:
         sync: false
       - key: DATABASE_MIGRATION_PASSWORD
         sync: false
-      # Public URLs (https://tudominio.com and https://api.tudominio.com)
+      # Public URLs (activate DNS and attach these domains in Vercel/Render before deploying)
       - key: APP_FRONTEND_ORIGIN
-        sync: false
+        value: https://olvenio.com
       - key: APP_PUBLIC_FRONTEND_URL
-        sync: false
+        value: https://olvenio.com
       - key: APP_PUBLIC_BACKEND_URL
-        sync: false
+        value: https://api.olvenio.com
       # Mercado Pago live credentials of the real seller
       - key: MERCADOPAGO_ENVIRONMENT
         value: production
@@ -65,7 +68,7 @@ services:
         value: 3 a 7 días hábiles
       # Transactional email (SMTP of your provider, sender on your domain)
       - key: APP_STORE_NAME
-        sync: false
+        value: Olvenio
       - key: SPRING_MAIL_HOST
         sync: false
       - key: SPRING_MAIL_PORT

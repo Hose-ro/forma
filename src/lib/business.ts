@@ -6,10 +6,10 @@ const env = (value: string | undefined, fallback: string) => (value && value.tri
 export const LIVE = process.env.NEXT_PUBLIC_STORE_MODE === 'live';
 
 export const BUSINESS = {
-  legalName: env(process.env.NEXT_PUBLIC_BUSINESS_LEGAL_NAME, 'FORMA. · Proyecto de demostración'),
+  legalName: env(process.env.NEXT_PUBLIC_BUSINESS_LEGAL_NAME, 'Olvenio · Proyecto de demostración'),
   taxId: env(process.env.NEXT_PUBLIC_BUSINESS_TAX_ID, ''),
   address: env(process.env.NEXT_PUBLIC_BUSINESS_ADDRESS, 'Ciudad de México, México (ilustrativo)'),
-  email: env(process.env.NEXT_PUBLIC_BUSINESS_EMAIL, 'hola@forma.example'),
+  email: env(process.env.NEXT_PUBLIC_BUSINESS_EMAIL, 'hola@olvenio.example'),
   phone: env(process.env.NEXT_PUBLIC_BUSINESS_PHONE, ''),
   hours: env(process.env.NEXT_PUBLIC_BUSINESS_HOURS, 'Lunes a viernes, 9:00 a 18:00 h (centro de México)'),
   /** Calendar days the customer has to request a return. */
