@@ -85,31 +85,84 @@ public class AccountService {
 
     @Transactional
     public AddressView addAddress(UUID userId, AddressRequest req) {
-        if (addresses.countByUserId(userId) >= MAX_ADDRESSES) {
+        lockAddressBook(userId);
+        long count = addresses.countByUserId(userId);
+        if (count >= MAX_ADDRESSES) {
             throw new BusinessRuleException("Address limit reached");
         }
-        String neighborhood = blankToNull(req.neighborhood());
-        var postal = "MX".equals(req.country())
-                ? postalDirectory.validate(req.postalCode(), req.state(), req.city(), neighborhood) : null;
-        boolean makeDefault = req.makeDefault() || addresses.countByUserId(userId) == 0;
-        if (makeDefault) {
-            addresses.findByUserIdAndDefaultAddressTrue(userId).ifPresent(a -> {
-                a.unsetDefault();
-                addresses.flush();
-            });
-        }
-        Address saved = addresses.save(new Address(userId, blankToNull(req.label()), req.recipientName(), req.line1(),
-                blankToNull(req.line2()), postal == null ? req.city() : postal.municipality(),
-                postal == null ? req.state() : postal.state(), req.postalCode(), req.country(),
-                blankToNull(req.phone()), makeDefault, neighborhood));
+        Place place = place(req);
+        boolean makeDefault = req.makeDefault() || count == 0;
+        if (makeDefault) clearDefaultAddress(userId);
+        Address saved = addresses.save(new Address(userId, blankToNull(req.label()), req.recipientName().trim(),
+                req.line1().trim(), blankToNull(req.line2()), place.city(), place.state(), req.postalCode(),
+                req.country(), blankToNull(req.phone()), makeDefault, place.neighborhood()));
         return toView(saved);
     }
 
     @Transactional
+    public AddressView updateAddress(UUID userId, UUID addressId, AddressRequest req) {
+        lockAddressBook(userId);
+        Address address = loadAddress(userId, addressId);
+        Place place = place(req);
+        if (req.makeDefault()) makeDefault(address);
+        address.update(blankToNull(req.label()), req.recipientName().trim(), req.line1().trim(),
+                blankToNull(req.line2()), place.city(), place.state(), req.postalCode(), req.country(),
+                blankToNull(req.phone()), place.neighborhood());
+        return toView(address);
+    }
+
+    @Transactional
+    public AddressView setDefaultAddress(UUID userId, UUID addressId) {
+        lockAddressBook(userId);
+        Address address = loadAddress(userId, addressId);
+        makeDefault(address);
+        return toView(address);
+    }
+
+    @Transactional
     public void deleteAddress(UUID userId, UUID addressId) {
-        Address address = addresses.findByIdAndUserId(addressId, userId)
-                .orElseThrow(() -> new NotFoundException("Address not found"));
+        lockAddressBook(userId);
+        Address address = loadAddress(userId, addressId);
+        boolean wasDefault = address.isDefaultAddress();
         addresses.delete(address);
+        addresses.flush();
+        if (wasDefault) {
+            // Keep a default while the book has addresses: promote the oldest remaining one.
+            addresses.findByUserIdOrderByCreatedAtAsc(userId).stream().findFirst().ifPresent(Address::markDefault);
+        }
+    }
+
+    private record Place(String city, String state, String neighborhood) {}
+
+    /** Mexican addresses take municipality and state from the postal directory, as checkout does. */
+    private Place place(AddressRequest req) {
+        String neighborhood = blankToNull(req.neighborhood());
+        if (!"MX".equals(req.country())) return new Place(req.city().trim(), req.state().trim(), neighborhood);
+        var postal = postalDirectory.validate(req.postalCode(), req.state(), req.city(), neighborhood);
+        return new Place(postal.municipality(), postal.state(), neighborhood);
+    }
+
+    private void lockAddressBook(UUID userId) {
+        users.lockById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    private Address loadAddress(UUID userId, UUID addressId) {
+        return addresses.findByIdAndUserId(addressId, userId)
+                .orElseThrow(() -> new NotFoundException("Address not found"));
+    }
+
+    private void makeDefault(Address address) {
+        if (address.isDefaultAddress()) return;
+        clearDefaultAddress(address.getUserId());
+        address.markDefault();
+    }
+
+    private void clearDefaultAddress(UUID userId) {
+        addresses.findByUserIdAndDefaultAddressTrue(userId).ifPresent(previous -> {
+            previous.unsetDefault();
+            // Release the partial unique index entry before another address takes it.
+            addresses.flush();
+        });
     }
 
     private User load(UUID userId) {

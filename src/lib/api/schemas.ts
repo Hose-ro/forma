@@ -47,6 +47,14 @@ export const userSchema = z.object({
 });
 
 const orderStatus = z.enum(['DRAFT', 'PENDING_PAYMENT', 'PAID', 'PAYMENT_REVIEW', 'REFUNDED', 'PARTIALLY_REFUNDED', 'CANCELLED']);
+export const savedAddressSchema = z.object({
+  id: z.string(), label: z.string().nullish(), recipientName: z.string(), line1: z.string(),
+  line2: z.string().nullish(), neighborhood: z.string().nullish(), city: z.string(), state: z.string(),
+  postalCode: z.string(), country: z.string(), phone: z.string().nullish(), isDefault: z.boolean(),
+});
+export const savedAddressesSchema = z.array(savedAddressSchema);
+export type SavedAddress = z.infer<typeof savedAddressSchema>;
+
 export const orderSchema = z.object({
   id: z.string(), orderNumber: z.string().nullish(), status: orderStatus, paymentStatus: z.string(),
   customer: z.object({ email: z.string(), firstName: z.string(), lastName: z.string(), phone: z.string().nullish() }),

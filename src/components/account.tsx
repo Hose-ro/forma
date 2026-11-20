@@ -13,6 +13,7 @@ import { safeRedirect } from '@/lib/safe-redirect';
 import { useShop } from '@/stores/shop';
 import type { Category, OrderSummary, User } from '@/types';
 import { PasswordField } from './password-field';
+import { AccountAddresses } from './account-addresses';
 
 type Mode = 'login' | 'register' | 'forgot';
 
@@ -29,6 +30,7 @@ export function Account() {
       <Orders key={user.id} signedIn />
       <aside className="account-sidebar">
         <Profile key={user.id} user={user} />
+        <AccountAddresses key={`addresses-${user.id}`} user={user} />
         <Interests key={user.id} user={user} />
       </aside>
     </div>

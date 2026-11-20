@@ -60,6 +60,17 @@ public class MeController {
         return accounts.addAddress(user.id(), req);
     }
 
+    @PatchMapping("/addresses/{id}")
+    public AddressView updateAddress(@AuthenticationPrincipal AuthUser user, @PathVariable UUID id,
+                                     @Valid @RequestBody AddressRequest req) {
+        return accounts.updateAddress(user.id(), id, req);
+    }
+
+    @PatchMapping("/addresses/{id}/default")
+    public AddressView setDefaultAddress(@AuthenticationPrincipal AuthUser user, @PathVariable UUID id) {
+        return accounts.setDefaultAddress(user.id(), id);
+    }
+
     @DeleteMapping("/addresses/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAddress(@AuthenticationPrincipal AuthUser user, @PathVariable UUID id) {

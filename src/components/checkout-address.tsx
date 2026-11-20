@@ -5,7 +5,7 @@ import { useWatch, type UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import { api } from '@/lib/api/client';
 import { ApiError } from '@/lib/api/http';
-import type { CheckoutValues } from '@/lib/validation';
+import type { ShippingFields } from '@/lib/validation';
 
 const postalSchema = z.object({
   postalCode: z.string(), municipality: z.string(), state: z.string(),
@@ -14,8 +14,10 @@ const postalSchema = z.object({
 type PostalCode = z.infer<typeof postalSchema>;
 type Lookup = { code: string; data?: PostalCode; error?: 'missing' | 'unavailable' };
 
-export function CheckoutAddress({ form }: { form: UseFormReturn<CheckoutValues> }) {
-  const { control, register, setValue, clearErrors, formState: { errors } } = form;
+/** Postal-code driven address fields, shared by checkout and the customer's address book. */
+export function CheckoutAddress<T extends ShippingFields>({ form }: { form: UseFormReturn<T> }) {
+  // Every form using this component holds the shipping fields; narrow it once for typed field names.
+  const { control, register, setValue, clearErrors, formState: { errors } } = form as unknown as UseFormReturn<ShippingFields>;
   const code = useWatch({ control, name: 'postalCode' }) || '';
   const complete = /^[0-9]{5}$/.test(code);
   const [lookup, setLookup] = useState<Lookup | null>(null);
