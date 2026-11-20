@@ -236,3 +236,16 @@
   .after-sales-facts { grid-template-columns: 1fr; gap: .25rem; }
   .after-sales-facts dd { margin-bottom: .5rem; }
 }
+
+.supplier-editor button:disabled { opacity: 0.55; cursor: default; }
+.supplier-editor { min-width: 0; display: grid; gap: 14px; padding: 16px; border: 1px solid var(--color-stone); }
+.supplier-editor legend { padding: 0 6px; }
+.supplier-editor-source { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+.supplier-editor-source .text-link { margin-bottom: 5px; }
+.supplier-text, .product-description { white-space: pre-line; overflow-wrap: anywhere; }
+.accordions [role="region"] .text-link { margin-top: 8px; }
+
+@media (max-width: 480px) {
+  .supplier-editor-source { grid-template-columns: minmax(0, 1fr); justify-items: start; }
+  .supplier-editor-source label { width: 100%; }
+}

@@ -10,6 +10,7 @@ import com.olvenio.catalog.application.CatalogDtos.ImageView;
 import com.olvenio.catalog.application.CatalogDtos.ProductDetailView;
 import com.olvenio.catalog.application.CatalogDtos.ProductSummaryView;
 import com.olvenio.catalog.application.CatalogDtos.VariantView;
+import com.olvenio.catalog.application.CatalogDtos.SupplierContent;
 import com.olvenio.catalog.domain.Category;
 import com.olvenio.catalog.domain.Product;
 import com.olvenio.catalog.domain.ProductVariant;
@@ -41,7 +42,7 @@ final class CatalogMapper {
                 .toList();
         return new ProductDetailView(p.getId(), p.getSlug(), p.getName(), p.getDescription(), p.getMaterial(),
                 ref(p), display(p.getPrice()), display(p.getCompareAtPrice()), p.getCurrency(), p.isFeatured(),
-                p.isAvailable(), images(p), variants, p.getCreatedAt());
+                p.isAvailable(), images(p), variants, p.getCreatedAt(), supplier(p));
     }
 
     static AdminProductView admin(Product p) {
@@ -53,7 +54,11 @@ final class CatalogMapper {
         return new AdminProductView(p.getId(), p.getSlug(), p.getName(), p.getDescription(), p.getMaterial(),
                 p.getCategory().getId(), p.getCategory().getSlug(), p.getStatus(), p.isFeatured(), p.isAvailable(),
                 display(p.getPrice()), display(p.getCompareAtPrice()), p.getCurrency(), images(p), variants,
-                p.getCreatedAt(), p.getUpdatedAt());
+                p.getCreatedAt(), p.getUpdatedAt(), supplier(p));
+    }
+
+    private static SupplierContent supplier(Product p) {
+        return new SupplierContent(p.getSupplierProductUrl(), p.getSupplierSpecifications());
     }
 
     private static CategoryRef ref(Product p) {

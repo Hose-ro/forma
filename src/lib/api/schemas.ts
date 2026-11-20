@@ -18,8 +18,11 @@ const productBase = {
 };
 export const productSummarySchema = z.object({ ...productBase, imageUrl: z.string().nullish(), defaultVariantId: z.string().nullish() });
 export const productPageSchema = page(productSummarySchema);
+const supplierSchema = z.object({
+  productUrl: z.string().nullish(), specifications: z.string().nullish(),
+});
 export const productDetailSchema = z.object({
-  ...productBase, description: z.string().nullish(), material: z.string().nullish(),
+  ...productBase, description: z.string().nullish(), material: z.string().nullish(), supplier: supplierSchema.nullish(),
   images: z.array(z.object({ url: z.string(), altText: z.string().nullish() })),
   variants: z.array(z.object({
     id: z.string(), sku: z.string(), name: z.string(), color: z.string().nullish(), price: z.number(),
@@ -67,7 +70,7 @@ export const orderSummarySchema = z.object({
 export const orderPageSchema = page(orderSummarySchema);
 
 export const adminProductSchema = z.object({
-  id: z.string(), slug: z.string(), name: z.string(), description: z.string().nullish(), material: z.string().nullish(),
+  id: z.string(), slug: z.string(), name: z.string(), description: z.string().nullish(), material: z.string().nullish(), supplier: supplierSchema.nullish(),
   categoryId: z.string(), categorySlug: z.string(), status: z.enum(['DRAFT', 'ACTIVE', 'PAUSED', 'ARCHIVED']),
   featured: z.boolean(), available: z.boolean(), price: z.number(), compareAtPrice: z.number().nullish(),
   currency: z.string(), images: z.array(z.object({ url: z.string(), altText: z.string().nullish() })),

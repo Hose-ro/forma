@@ -36,10 +36,10 @@ class AdminAuditPersistenceIntegrationTest {
                 new BigDecimal("250.00"), null, 0, null, true, 0, null);
         var created = admin.createProduct(new ProductCreateRequest(category, slug, "Audit regression",
                 "Temporary regression product", null, ProductStatus.DRAFT, false,
-                new BigDecimal("250.00"), null, List.of(variant), List.of()));
+                new BigDecimal("250.00"), null, List.of(variant), List.of(), null));
         em.flush();
         admin.updateProduct(created.id(), new ProductPatchRequest(null, null, null, null, null,
-                null, null, new BigDecimal("251.00"), null, null, null, null));
+                null, null, new BigDecimal("251.00"), null, null, null, null, null));
         em.flush();
         em.clear();
         assertEquals(2, db.queryForObject("select count(*) from audit_logs where entity_id=?",

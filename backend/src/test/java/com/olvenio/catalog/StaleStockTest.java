@@ -49,7 +49,7 @@ class StaleStockTest {
     private ProductPatchRequest patch(String description, Integer stock, Integer expectedStock) {
         var v = new VariantInput(variantId, "VASE-1", "Original", null, new BigDecimal("100.00"), null, stock,
                 expectedStock, null, 0, null);
-        return new ProductPatchRequest(null, null, null, description, null, null, null, null, null, null, List.of(v), null);
+        return new ProductPatchRequest(null, null, null, description, null, null, null, null, null, null, List.of(v), null, null);
     }
 
     @Test void descriptionSaveFromStaleFormKeepsSoldUnitsSold() {

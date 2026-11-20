@@ -1,9 +1,9 @@
 import type { z } from 'zod';
-import type { adminProductSchema, cartSchema, categorySchema, dashboardSchema, orderSchema, orderSummarySchema, userSchema } from '@/lib/api/schemas';
+import type { adminProductSchema, cartSchema, categorySchema, dashboardSchema, orderSchema, orderSummarySchema, productDetailSchema, userSchema } from '@/lib/api/schemas';
 
 export type ProductVariant = { id: string; sku: string; name: string; color: string; price: number; stock: number; image: string; available: boolean };
 /** Storefront view model. List results carry no variants, only `defaultVariantId` for quick add. */
-export type Product = { id: string; slug: string; name: string; description: string; category: string; categorySlug: string; price: number; compareAtPrice?: number; currency: string; images: string[]; variants: ProductVariant[]; defaultVariantId: string | null; available: boolean; featured: boolean; createdAt: string; material: string };
+export type Product = { id: string; slug: string; name: string; description: string; category: string; categorySlug: string; price: number; compareAtPrice?: number; currency: string; images: string[]; variants: ProductVariant[]; defaultVariantId: string | null; available: boolean; featured: boolean; createdAt: string; material: string; supplier?: z.infer<typeof productDetailSchema>['supplier'] };
 export type ProductPage = { items: Product[]; page: number; totalElements: number; totalPages: number };
 export type Category = z.infer<typeof categorySchema>;
 export type Cart = z.infer<typeof cartSchema>;

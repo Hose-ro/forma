@@ -21,7 +21,11 @@ const PAGE_SIZE=25;
 const IMAGE_HOSTS=(process.env.NEXT_PUBLIC_IMAGE_HOSTS||'').split(',').filter(Boolean);
 type AdminVariant=AdminProduct['variants'][number];
 type DraftVariant={key:string;id?:string;sku:string;name:string;color:string;price:number;stock:number;position:number;imageUrl?:string|null;compareAtPrice?:number|null;removed?:boolean};
-type Draft={id?:string;original?:AdminProduct;name:string;categoryId:string;description:string;material:string;photos:string[];active:boolean;featured:boolean;variants:DraftVariant[]};
+type SupplierDraft = { productUrl: string; specifications: string };
+type ImportedSupplier = Partial<SupplierDraft> & { description?: string };
+const emptySupplier: SupplierDraft = { productUrl: '', specifications: '' };
+
+type Draft={id?:string;original?:AdminProduct;name:string;categoryId:string;description:string;material:string;supplier:SupplierDraft;photos:string[];active:boolean;featured:boolean;variants:DraftVariant[]};
 type Result={ok:boolean;status?:number};
 type Run=(action:()=>Promise<string>)=>Promise<Result>;
 type Paged<T>={items:T[];totalPages:number;totalElements:number};
@@ -112,8 +116,10 @@ export function Admin({adminEmail}:{adminEmail:string}){
   const title=tabs.find(t=>t[0]===tab)?.[1]||'Resumen';
   const clear=()=>{setNotice('');setError('')};
 
-  function freshDraft():Draft{return {name:'',categoryId:categories[0]?.id||'',description:'',material:'',photos:[],active:false,featured:false,variants:[{key:newKey(),sku:'',name:'Original',color:'#b6aa94',price:0,stock:0,position:0}]}}
-  function toDraft(p:AdminProduct):Draft{return {id:p.id,original:p,name:p.name,categoryId:p.categoryId,description:p.description||'',material:p.material||'',photos:p.images.map(i=>i.url),active:p.status==='ACTIVE',featured:p.featured,variants:activeVariants(p).map(v=>({key:v.id,id:v.id,sku:v.sku,name:v.name,color:v.color||'#b6aa94',price:v.price,stock:v.stock,position:v.position,imageUrl:v.imageUrl,compareAtPrice:v.compareAtPrice}))}}
+  function freshDraft():Draft{return {name:'',categoryId:categories[0]?.id||'',description:'',material:'',supplier:emptySupplier,photos:[],active:false,featured:false,variants:[{key:newKey(),sku:'',name:'Original',color:'#b6aa94',price:0,stock:0,position:0}]}}
+  function toDraft(p:AdminProduct):Draft{return {id:p.id,original:p,name:p.name,categoryId:p.categoryId,description:p.description||'',material:p.material||'',supplier:{
+    productUrl:p.supplier?.productUrl||'', specifications:p.supplier?.specifications||'',
+  },photos:p.images.map(i=>i.url),active:p.status==='ACTIVE',featured:p.featured,variants:activeVariants(p).map(v=>({key:v.id,id:v.id,sku:v.sku,name:v.name,color:v.color||'#b6aa94',price:v.price,stock:v.stock,position:v.position,imageUrl:v.imageUrl,compareAtPrice:v.compareAtPrice}))}}
 
   async function saveDraft(d:Draft){
     const kept=d.variants.filter(v=>!v.removed);
@@ -122,7 +128,21 @@ export function Admin({adminEmail}:{adminEmail:string}){
     const o=d.original;
     const photosChanged=!o||JSON.stringify(d.photos)!==JSON.stringify(o.images.map(i=>i.url));
     const images=photosChanged?d.photos.map(url=>({url,altText:d.name.trim()})):undefined;
-    const common={name:d.name.trim(),categoryId:d.categoryId,description:d.description,featured:d.featured,price:kept[0].price};
+    const supplierUrl = (value: string) => {
+      if (!value.trim()) return null;
+      try {
+        const url = new URL(value.trim());
+        if (url.protocol === 'https:' && !url.username && !url.password && url.href.length <= 1000) return url.href;
+      } catch { /* The editor shows the same message for invalid and unsupported addresses. */ }
+      throw new FormError('Usa una dirección HTTPS válida para la información del proveedor.');
+    };
+    const supplier = {
+      productUrl: supplierUrl(d.supplier.productUrl),
+      specifications: d.supplier.specifications.trim() || null,
+    };
+    const supplierChanged = !o || Object.entries(supplier).some(([key, value]) =>
+      value !== (o.supplier?.[key as keyof SupplierDraft] ?? null));
+    const common={supplier:supplierChanged?supplier:undefined,name:d.name.trim(),categoryId:d.categoryId,description:d.description,featured:d.featured,price:kept[0].price};
     const content=(v:DraftVariant|AdminVariant,imageUrl:string|null|undefined)=>({id:v.id,sku:v.sku.trim().toUpperCase(),name:v.name.trim(),color:v.color||undefined,price:v.price,compareAtPrice:v.compareAtPrice??undefined,position:v.position,imageUrl:imageUrl||undefined});
     if(d.id&&o){
       // Only what actually changed is sent. Stock travels with the value this form was opened with, so the
@@ -187,9 +207,56 @@ export function Admin({adminEmail}:{adminEmail:string}){
 </div></main></div>;
 }
 
-function ProductEditor({draft:d,setDraft,categories,busy,onSubmit}:{draft:Draft;setDraft:(d:Draft|null)=>void;categories:Category[];busy:boolean;onSubmit:(d:Draft)=>Promise<void>}){
+function ProductEditor({draft:d,setDraft,categories,busy,onSubmit}:{draft:Draft;setDraft:React.Dispatch<React.SetStateAction<Draft|null>>;categories:Category[];busy:boolean;onSubmit:(d:Draft)=>Promise<void>}){
   const [photoUrl,setPhotoUrl]=useState('');const [photoError,setPhotoError]=useState('');
+  const [importing, setImporting] = useState(false);
+  const [sourceFeedback, setSourceFeedback] = useState<{ text: string; error: boolean } | null>(null);
   const kept=d.variants.filter(v=>!v.removed);
+
+  function updateSupplier(key: keyof SupplierDraft, value: string) {
+    setDraft({ ...d, supplier: { ...d.supplier, [key]: value } });
+    setSourceFeedback(null);
+  }
+
+  async function importSource() {
+    const url = d.supplier.productUrl.trim();
+    setImporting(true);
+    setSourceFeedback(null);
+    try {
+      const response = await fetch('/api/admin/supplier-source', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, kind: 'product' }),
+      });
+      if (!response.ok) {
+        const text = response.status === 400
+          ? 'Usa una dirección HTTPS pública del proveedor.'
+          : 'No pudimos leer la página. Puedes completar los campos a mano.';
+        setSourceFeedback({ text, error: true });
+        return;
+      }
+      const result: ImportedSupplier = await response.json();
+      if (!result.description && !result.specifications) {
+        setSourceFeedback({ text: 'No encontramos información importable en esta página. Puedes completarla a mano.', error: true });
+        return;
+      }
+      setDraft(current => {
+        if (!current || current.id !== d.id || current.variants[0]?.key !== d.variants[0]?.key) return current;
+        return {
+          ...current,
+          description: result.description || current.description,
+          supplier: {
+            productUrl: result.productUrl || current.supplier.productUrl,
+            specifications: result.specifications || current.supplier.specifications,
+          },
+        };
+      });
+      setSourceFeedback({ text: 'Revisa la información importada antes de guardar el producto.', error: false });
+    } catch {
+      setSourceFeedback({ text: 'No pudimos importar la página. Intenta de nuevo o completa los campos a mano.', error: true });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const setVariant=(key:string,patch:Partial<DraftVariant>)=>setDraft({...d,variants:d.variants.map(v=>v.key===key?{...v,...patch}:v)});
   function addPhoto(raw:string){
     const url=raw.trim();if(!url)return;
@@ -198,11 +265,25 @@ function ProductEditor({draft:d,setDraft,categories,busy,onSubmit}:{draft:Draft;
     if(!problem){setDraft({...d,photos:[...d.photos,url]});setPhotoUrl('')}
   }
   return <section className="admin-panel product-editor"><div className="drawer-heading"><h2>{d.id?'Editar producto':'Nuevo producto'}</h2><button className="icon-button" aria-label="Cerrar editor" onClick={()=>setDraft(null)}><X/></button></div>
-  <form onSubmit={e=>{e.preventDefault();void onSubmit(d)}}><div className="form-grid">
+  <form onSubmit={e=>{e.preventDefault();if(!importing)void onSubmit(d)}}><div className="form-grid">
     <label>Nombre<input required maxLength={200} value={d.name} onChange={e=>setDraft({...d,name:e.target.value})}/></label>
     <label>Categoría<select required value={d.categoryId} onChange={e=>setDraft({...d,categoryId:e.target.value})}>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
     <label className="span-2">Descripción<textarea required rows={3} maxLength={5000} value={d.description} onChange={e=>setDraft({...d,description:e.target.value})}/></label>
     <label className="span-2">Materiales y detalles<input maxLength={500} value={d.material} onChange={e=>setDraft({...d,material:e.target.value})}/></label>
+    <fieldset className="span-2 supplier-editor" disabled={importing || busy}>
+      <legend>Información del proveedor</legend>
+      <div className="supplier-editor-source">
+        <label>URL del producto<input type="url" pattern="https://.+" maxLength={1000} value={d.supplier.productUrl}
+          onChange={e => updateSupplier('productUrl', e.target.value)} placeholder="https://" /></label>
+        <button type="button" className="text-link" disabled={!d.supplier.productUrl.trim()}
+          onClick={() => void importSource()}>Importar ficha</button>
+      </div>
+      <label>Características del proveedor<textarea rows={4} maxLength={5000} value={d.supplier.specifications}
+        onChange={e => updateSupplier('specifications', e.target.value)} /></label>
+      {importing && <p role="status">Leyendo la página del proveedor…</p>}
+      {sourceFeedback && <p className={sourceFeedback.error ? 'error' : 'success-message'}
+        role={sourceFeedback.error ? 'alert' : 'status'}>{sourceFeedback.text}</p>}
+    </fieldset>
     <div className="span-2"><span>Fotografías</span>
       <ul className="photo-list">{d.photos.map((url,i)=><li key={url}>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={url} alt=""/><span>{url}{i===0&&' · principal'}</span><button type="button" className="danger-text" aria-label={`Quitar fotografía ${i+1}`} onClick={()=>setDraft({...d,photos:d.photos.filter(x=>x!==url)})}>Quitar</button></li>)}</ul>
       <div className="photo-add"><input aria-label="Dirección de la fotografía" inputMode="url" placeholder="https://… o /products/archivo.jpg" value={photoUrl} onChange={e=>setPhotoUrl(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addPhoto(photoUrl)}}}/><button type="button" className="text-link" onClick={()=>addPhoto(photoUrl)}>Añadir fotografía</button>{!LIVE&&<select aria-label="Añadir desde la biblioteca de demostración" value="" onChange={e=>addPhoto(e.target.value)}><option value="">Biblioteca de demostración…</option>{PHOTO_LIBRARY.map(photo=><option key={photo} value={`/products/${photo}.jpg`}>{photo}</option>)}</select>}</div>
@@ -219,7 +300,7 @@ function ProductEditor({draft:d,setDraft,categories,busy,onSubmit}:{draft:Draft;
     <div className="span-2"><button type="button" className="text-link" disabled={kept.length>=50} onClick={()=>setDraft({...d,variants:[...d.variants,{key:newKey(),sku:'',name:'',color:'#b6aa94',price:kept[0]?.price||0,stock:0,position:d.variants.length}]})}><Plus size={15}/> Añadir variante</button><span className="field-hint">Las existencias solo se envían si las cambias, junto con la cifra que viste al abrir el editor: si hubo una venta entretanto, el guardado se rechaza en lugar de reponer unidades vendidas. Una variante retirada deja de venderse pero se conserva en pedidos anteriores.</span></div>
     <label className="checkbox-label"><input type="checkbox" checked={d.active} onChange={e=>setDraft({...d,active:e.target.checked})}/> Activo (visible en la tienda)</label>
     <label className="checkbox-label"><input type="checkbox" checked={d.featured} onChange={e=>setDraft({...d,featured:e.target.checked})}/> Destacado en home</label>
-  </div><button className="button" disabled={busy}>{busy?'Guardando…':'Guardar producto'}</button></form></section>;
+  </div><button className="button" disabled={busy || importing}>{busy?'Guardando…':'Guardar producto'}</button></form></section>;
 }
 
 type CategoryDraft={id?:string;name:string;slug:string;description:string;imageUrl:string;sortOrder:number};

@@ -22,6 +22,7 @@ public final class CatalogDtos {
 
     public static final String SLUG = "^[a-z0-9]+(-[a-z0-9]+)*$";
     public static final String URL = "^(https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[^\\s<>\"'\\\\]*)?|/(?!/)[^\\s<>\"'\\\\]*)$";
+    public static final String SUPPLIER_URL = "(?=https://)" + URL;
     public static final String SKU = "^[A-Za-z0-9_-]{2,64}$";
     public static final String COLOR = "^#[0-9a-fA-F]{6}$";
 
@@ -46,10 +47,15 @@ public final class CatalogDtos {
                                      boolean available, String imageUrl, UUID defaultVariantId, Instant createdAt) {
     }
 
+    public record SupplierContent(
+            @Size(max = 1000) @Pattern(regexp = SUPPLIER_URL) String productUrl,
+            @Size(max = 5000) String specifications) {
+    }
+
     public record ProductDetailView(UUID id, String slug, String name, String description, String material,
                                     CategoryRef category, BigDecimal price, BigDecimal compareAtPrice,
                                     String currency, boolean featured, boolean available, List<ImageView> images,
-                                    List<VariantView> variants, Instant createdAt) {
+                                    List<VariantView> variants, Instant createdAt, SupplierContent supplier) {
     }
 
     public record ProductFilter(String category, BigDecimal minPrice, BigDecimal maxPrice, Boolean available,
@@ -66,7 +72,7 @@ public final class CatalogDtos {
                                    UUID categoryId, String categorySlug, ProductStatus status, boolean featured,
                                    boolean available, BigDecimal price, BigDecimal compareAtPrice, String currency,
                                    List<ImageView> images, List<AdminVariantView> variants, Instant createdAt,
-                                   Instant updatedAt) {
+                                   Instant updatedAt, SupplierContent supplier) {
     }
 
     public enum DeleteOutcome { DELETED, ARCHIVED }
@@ -104,7 +110,8 @@ public final class CatalogDtos {
             @NotNull @DecimalMin("0.00") @Digits(integer = 15, fraction = 2) BigDecimal price,
             @DecimalMin("0.00") @Digits(integer = 15, fraction = 2) BigDecimal compareAtPrice,
             @NotEmpty @Size(max = 50) List<@NotNull @Valid VariantInput> variants,
-            @Size(max = 20) List<@NotNull @Valid ImageInput> images) {
+            @Size(max = 20) List<@NotNull @Valid ImageInput> images,
+            @Valid SupplierContent supplier) {
     }
 
     /** Absolute stock for one variant, valid only if the stock is still the one the administrator saw. */
@@ -129,7 +136,8 @@ public final class CatalogDtos {
             @DecimalMin("0.00") @Digits(integer = 15, fraction = 2) BigDecimal compareAtPrice,
             Boolean clearCompareAtPrice,
             @Size(min = 1, max = 50) List<@NotNull @Valid VariantInput> variants,
-            @Size(max = 20) List<@NotNull @Valid ImageInput> images) {
+            @Size(max = 20) List<@NotNull @Valid ImageInput> images,
+            @Valid SupplierContent supplier) {
     }
 
     public record CategoryCreateRequest(

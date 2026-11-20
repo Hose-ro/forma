@@ -7,7 +7,7 @@ Tienda de demostración: frontend Next.js (este directorio) + backend Spring Boo
 1. Backend (ver `backend/README.md`): `cd backend && set -a && source .env && set +a && mvn spring-boot:run` → http://localhost:8080
 2. Frontend: `cp .env.example .env.local` (opcional), `npm install`, `npm run dev` → http://localhost:3000
 
-Verificación: `npm run typecheck`, `npm run build`. Requiere Node.js 20.9+; la primera compilación necesita acceso a Google Fonts.
+Verificación: `npm run typecheck`, `npm run build`. Requiere Node.js 20.18.1+; la primera compilación necesita acceso a Google Fonts.
 
 ## Cómo se conecta
 - `next.config.mjs` proxya `/api/v1/*` a `BACKEND_URL` (variable solo de servidor). El navegador nunca llama a otro origen.

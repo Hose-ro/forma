@@ -35,7 +35,7 @@ export const catalogRepository = {
       const p = await serverGet(`/products/${encodeURIComponent(slug)}`, productDetailSchema);
       const fallback = p.images[0]?.url || FALLBACK_IMAGE;
       const variants = p.variants.map(v => ({ id: v.id, sku: v.sku, name: v.name, color: v.color || '#b6aa94', price: v.price, stock: v.stock, image: v.imageUrl || fallback, available: v.available }));
-      return { id: p.id, slug: p.slug, name: p.name, description: p.description || '', material: p.material || '', category: p.category.name, categorySlug: p.category.slug, price: p.price, compareAtPrice: p.compareAtPrice ?? undefined, currency: p.currency, images: p.images.length ? p.images.map(i => i.url) : [fallback], variants, defaultVariantId: variants.find(v => v.available)?.id ?? null, available: p.available, featured: p.featured, createdAt: p.createdAt };
+      return { id: p.id, slug: p.slug, name: p.name, description: p.description || '', material: p.material || '', supplier: p.supplier, category: p.category.name, categorySlug: p.category.slug, price: p.price, compareAtPrice: p.compareAtPrice ?? undefined, currency: p.currency, images: p.images.length ? p.images.map(i => i.url) : [fallback], variants, defaultVariantId: variants.find(v => v.available)?.id ?? null, available: p.available, featured: p.featured, createdAt: p.createdAt };
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) return null;
       throw e;

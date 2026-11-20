@@ -14,6 +14,7 @@ import com.olvenio.catalog.application.CatalogDtos.ImageInput;
 import com.olvenio.catalog.application.CatalogDtos.ProductCreateRequest;
 import com.olvenio.catalog.application.CatalogDtos.ProductPatchRequest;
 import com.olvenio.catalog.application.CatalogDtos.VariantInput;
+import com.olvenio.catalog.application.CatalogDtos.SupplierContent;
 import com.olvenio.catalog.domain.Category;
 import com.olvenio.catalog.domain.Product;
 import com.olvenio.catalog.domain.ProductStatus;
@@ -77,6 +78,7 @@ public class CatalogAdminService {
         Product p = new Product(category(req.categoryId()), req.slug(), req.name().trim(), req.price(), currency);
         p.update(null, null, null, req.description(), req.material(), req.featured(), null, req.compareAtPrice(),
                 true);
+        applySupplier(p, req.supplier());
         applyVariants(p, req.variants());
         applyImages(p, req.images());
         p.changeStatus(req.status() == null ? ProductStatus.DRAFT : req.status());
@@ -92,6 +94,7 @@ public class CatalogAdminService {
         p.update(req.categoryId() == null ? null : category(req.categoryId()), req.slug(), req.name(),
                 req.description(), req.material(), req.featured(), req.price(),
                 Boolean.TRUE.equals(req.clearCompareAtPrice()) ? null : req.compareAtPrice(), compareProvided);
+        applySupplier(p, req.supplier());
         if (req.variants() != null) applyVariants(p, req.variants());
         if (req.images() != null) applyImages(p, req.images());
         p.changeStatus(req.status() == null ? p.getStatus() : req.status());
@@ -162,6 +165,11 @@ public class CatalogAdminService {
         v.adjustStock(expectedStock, stock);
         variants.saveAndFlush(v);
         return CatalogMapper.admin(v.getProduct());
+    }
+
+    private static void applySupplier(Product p, SupplierContent supplier) {
+        if (supplier == null) return;
+        p.updateSupplier(supplier.productUrl(), supplier.specifications());
     }
 
     private static void applyImages(Product p, List<ImageInput> images) {

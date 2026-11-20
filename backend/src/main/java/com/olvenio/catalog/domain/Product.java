@@ -44,6 +44,10 @@ public class Product {
     private String name;
     private String description;
     private String material;
+    @Column(name = "supplier_product_url", length = 1000)
+    private String supplierProductUrl;
+    @Column(name = "supplier_specifications")
+    private String supplierSpecifications;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ProductStatus status = ProductStatus.DRAFT;
@@ -93,6 +97,11 @@ public class Product {
         if (this.compareAtPrice != null && this.compareAtPrice.compareTo(this.price) <= 0) {
             throw new BusinessRuleException("compareAtPrice must be greater than price");
         }
+    }
+
+    public void updateSupplier(String productUrl, String specifications) {
+        this.supplierProductUrl = productUrl;
+        this.supplierSpecifications = specifications;
     }
 
     public ProductVariant addVariant() {
@@ -149,6 +158,8 @@ public class Product {
     public String getName() { return name; }
     public String getDescription() { return description; }
     public String getMaterial() { return material; }
+    public String getSupplierProductUrl() { return supplierProductUrl; }
+    public String getSupplierSpecifications() { return supplierSpecifications; }
     public ProductStatus getStatus() { return status; }
     public boolean isFeatured() { return featured; }
     public BigDecimal getPrice() { return price; }
