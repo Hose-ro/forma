@@ -8,7 +8,7 @@ import type { Cart, User } from '@/types';
 
 // Client state backed by the REST API. The cart and the session live on the server (HttpOnly cookies);
 // only the footer message preference is kept in localStorage.
-type Registration = { firstName: string; lastName: string; email: string; password: string };
+type Registration = { firstName: string; lastName: string; email: string; password: string; passwordConfirmation: string; termsAccepted: boolean };
 type ShopState = {
   cart: Cart | null; cartReady: boolean; cartBusy: boolean; cartError: string;
   user: User | null; sessionReady: boolean;

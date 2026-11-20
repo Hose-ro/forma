@@ -38,6 +38,10 @@ public class User {
     private boolean enabled = true;
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
+    @Column(name = "terms_accepted_at", updatable = false)
+    private Instant termsAcceptedAt;
+    @Column(name = "terms_version", length = 32, updatable = false)
+    private String termsVersion;
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
     @Column(name = "updated_at", nullable = false)
@@ -84,6 +88,11 @@ public class User {
     /** Proven by a link sent to the address (verification or password reset). */
     public void markEmailVerified(Instant now) {
         if (emailVerifiedAt == null) emailVerifiedAt = now;
+    }
+
+    public void acceptTerms(String version, Instant now) {
+        termsAcceptedAt = now;
+        termsVersion = version;
     }
 
     public boolean isEmailVerified() { return emailVerifiedAt != null; }

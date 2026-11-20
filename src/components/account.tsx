@@ -12,6 +12,7 @@ import { ORDER_STATUS, formatDate, money } from '@/lib/data';
 import { safeRedirect } from '@/lib/safe-redirect';
 import { useShop } from '@/stores/shop';
 import type { OrderSummary, User } from '@/types';
+import { PasswordField } from './password-field';
 
 type Mode = 'login' | 'register' | 'forgot';
 
@@ -65,8 +66,23 @@ function AccountForm() {
     const fields = new FormData(event.currentTarget);
     const email = String(fields.get('email')).trim();
     const password = String(fields.get('password') ?? '');
+    const passwordConfirmation = String(fields.get('passwordConfirmation') ?? '');
+    const termsAccepted = fields.has('termsAccepted');
     setError('');
     setNotice('');
+    if (creating && password !== passwordConfirmation) {
+      setError('Las contraseñas no coinciden.');
+      event.currentTarget.querySelector<HTMLInputElement>('[name="passwordConfirmation"]')?.focus();
+      return;
+    }
+    if (creating && !termsAccepted) {
+      setError('Acepta los términos y condiciones para continuar.');
+      return;
+    }
+    if (new TextEncoder().encode(password).length > 72) {
+      setError('La contraseña es demasiado larga. Algunos caracteres, como los acentos, ocupan más espacio.');
+      return;
+    }
     setBusy(true);
     try {
       if (mode === 'forgot') {
@@ -77,7 +93,7 @@ function AccountForm() {
       if (mode === 'login') await login(email, password);
       else await register({
         firstName: String(fields.get('name')).trim(), lastName: String(fields.get('lastName')).trim(),
-        email, password,
+        email, password, passwordConfirmation, termsAccepted,
       });
       const destination = safeRedirect(next ?? '');
       if (destination) router.replace(destination);
@@ -104,11 +120,17 @@ function AccountForm() {
         <label>Apellidos<input name="lastName" required maxLength={100} autoComplete="family-name" /></label>
       </div>}
       <label>Correo electrónico<input name="email" type="email" required maxLength={320} autoComplete="email" /></label>
-      {mode !== 'forgot' && <label>Contraseña
-        <input name="password" type="password" required minLength={creating ? 10 : 1} maxLength={72}
-          autoComplete={creating ? 'new-password' : 'current-password'} />
-      </label>}
-      {creating && <p className="muted">Usa al menos 10 caracteres.</p>}
+      {mode !== 'forgot' && <PasswordField key={mode} label="Contraseña" name="password" creating={creating} />}
+      {creating && <>
+        <PasswordField label="Repite la contraseña" name="passwordConfirmation" creating />
+        <p className="muted">Usa al menos 10 caracteres.</p>
+        <div className="account-terms">
+          <label><input type="checkbox" name="termsAccepted" required aria-describedby="registration-terms" />
+            Acepto los términos y condiciones.
+          </label>
+          <Link id="registration-terms" href="/policies/terms" target="_blank" rel="noopener noreferrer">Leer los términos y condiciones</Link>
+        </div>
+      </>}
       {mode === 'forgot' && <p className="muted">Escribe el correo de tu cuenta y te enviaremos un enlace de un solo uso.</p>}
       {notice && <p className="success-message" role="status">{notice}</p>}
       {error && <p className="error" role="alert">{error}</p>}

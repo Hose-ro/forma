@@ -16,6 +16,7 @@ import com.olvenio.identity.application.IdentityDtos.UserView;
 import com.olvenio.shared.config.*;
 import com.olvenio.shared.security.*;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,6 +79,20 @@ class SecurityRegressionTest {
         mvc.perform(post("/api/v1/carts").with(csrf()).contentType("application/json").content("x".repeat(131073)))
                 .andExpect(status().isPayloadTooLarge());
         verifyNoInteractions(accounts, carts);
+    }
+
+    @Test void registrationRequiresExplicitConsentAndMatchingPasswords() throws Exception {
+        String registration = """
+                {"email":"test@example.com","firstName":"Test","lastName":"User","password":"test-password",
+                 "passwordConfirmation":"%s"%s}
+                """;
+        for (String consent : List.of("", ",\"termsAccepted\":false")) {
+            mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType("application/json")
+                    .content(registration.formatted("test-password", consent))).andExpect(status().isBadRequest());
+        }
+        mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType("application/json")
+                .content(registration.formatted("different-password", ",\"termsAccepted\":true"))).andExpect(status().isBadRequest());
+        verifyNoInteractions(accounts);
     }
 
     @Test void loginRotatesSessionAndLogoutMakesItUnusable() throws Exception {

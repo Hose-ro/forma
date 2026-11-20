@@ -3,9 +3,11 @@ package com.olvenio.identity.application;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 public final class IdentityDtos {
@@ -17,7 +19,12 @@ public final class IdentityDtos {
             @NotBlank @Size(min = 10, max = 72) String password,
             @NotBlank @Size(max = 100) String firstName,
             @NotBlank @Size(max = 100) String lastName,
-            @Size(max = 30) @Pattern(regexp = "^[0-9+()\\-\\s]*$") String phone) {
+            @Size(max = 30) @Pattern(regexp = "^[0-9+()\\-\\s]*$") String phone,
+            @NotNull @AssertTrue(message = "You must accept the terms and conditions") Boolean termsAccepted,
+            @NotBlank @Size(min = 10, max = 72) String passwordConfirmation) {
+        @AssertTrue(message = "The passwords must match")
+        public boolean isPasswordConfirmed() { return Objects.equals(password, passwordConfirmation); }
+
         @AssertTrue(message = "password must not exceed 72 UTF-8 bytes")
         public boolean isPasswordWithinBcryptLimit() { return bcryptLength(password); }
     }

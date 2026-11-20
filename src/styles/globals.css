@@ -331,3 +331,20 @@
   .account-heading { margin-bottom: 26px; }
   .account-dashboard-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+.password-field > label { display: block; margin-bottom: 7px; }
+.password-input { position: relative; }
+.password-input input { width: 100%; padding-right: 52px; }
+.password-input button {
+  position: absolute;
+  inset: 1px 1px 1px auto;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  color: var(--color-muted);
+}
+.password-input button:hover { color: var(--color-ink); }
+.account-terms { display: grid; justify-items: start; gap: 6px; }
+.account-form .account-terms label { display: flex; flex-direction: row; align-items: center; gap: 8px; min-height: 30px; }
+.account-terms input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
+.account-terms a { margin-left: 23px; text-decoration: underline; text-underline-offset: 3px; font-size: 0.8rem; }

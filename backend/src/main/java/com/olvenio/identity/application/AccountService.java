@@ -14,6 +14,7 @@ import com.olvenio.shared.address.PostalDirectory;
 import com.olvenio.shared.domain.BusinessRuleException;
 import com.olvenio.shared.domain.ConflictException;
 import com.olvenio.shared.domain.NotFoundException;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,13 +24,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AccountService {
 
+    private static final String TERMS_VERSION = "1";
     private static final int MAX_ADDRESSES = 10;
     private final UserRepository users;
     private final AddressRepository addresses;
     private final PasswordEncoder encoder;
     private final PostalDirectory postalDirectory;
 
-    public AccountService(UserRepository users, AddressRepository addresses, PasswordEncoder encoder, PostalDirectory postalDirectory) {
+
+    public AccountService(UserRepository users, AddressRepository addresses, PasswordEncoder encoder,
+                          PostalDirectory postalDirectory) {
         this.users = users;
         this.addresses = addresses;
         this.encoder = encoder;
@@ -42,9 +46,10 @@ public class AccountService {
         if (users.existsByEmailIgnoreCase(req.email())) {
             throw new ConflictException("Email already registered");
         }
-        User user = users.save(new User(req.email(), encoder.encode(req.password()), req.firstName(),
-                req.lastName(), blankToNull(req.phone()), Role.CUSTOMER));
-        return toView(user);
+        User user = new User(req.email(), encoder.encode(req.password()), req.firstName(),
+                req.lastName(), blankToNull(req.phone()), Role.CUSTOMER);
+        user.acceptTerms(TERMS_VERSION, Instant.now());
+        return toView(users.save(user));
     }
 
     @Transactional(readOnly = true)
