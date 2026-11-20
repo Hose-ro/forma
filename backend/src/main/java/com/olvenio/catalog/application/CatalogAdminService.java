@@ -169,7 +169,8 @@ public class CatalogAdminService {
 
     private static void applySupplier(Product p, SupplierContent supplier) {
         if (supplier == null) return;
-        p.updateSupplier(supplier.productUrl(), supplier.specifications());
+        p.updateSupplier(supplier.productUrl(), supplier.specifications(), supplier.returnPolicyUrl(),
+                supplier.returnPolicy());
     }
 
     private static void applyImages(Product p, List<ImageInput> images) {

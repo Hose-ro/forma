@@ -21,9 +21,9 @@ const PAGE_SIZE=25;
 const IMAGE_HOSTS=(process.env.NEXT_PUBLIC_IMAGE_HOSTS||'').split(',').filter(Boolean);
 type AdminVariant=AdminProduct['variants'][number];
 type DraftVariant={key:string;id?:string;sku:string;name:string;color:string;price:number;stock:number;position:number;imageUrl?:string|null;compareAtPrice?:number|null;removed?:boolean};
-type SupplierDraft = { productUrl: string; specifications: string };
+type SupplierDraft = { productUrl: string; specifications: string; returnPolicyUrl: string; returnPolicy: string };
 type ImportedSupplier = Partial<SupplierDraft> & { description?: string };
-const emptySupplier: SupplierDraft = { productUrl: '', specifications: '' };
+const emptySupplier: SupplierDraft = { productUrl: '', specifications: '', returnPolicyUrl: '', returnPolicy: '' };
 
 type Draft={id?:string;original?:AdminProduct;name:string;categoryId:string;description:string;material:string;supplier:SupplierDraft;photos:string[];active:boolean;featured:boolean;variants:DraftVariant[]};
 type Result={ok:boolean;status?:number};
@@ -119,6 +119,7 @@ export function Admin({adminEmail}:{adminEmail:string}){
   function freshDraft():Draft{return {name:'',categoryId:categories[0]?.id||'',description:'',material:'',supplier:emptySupplier,photos:[],active:false,featured:false,variants:[{key:newKey(),sku:'',name:'Original',color:'#b6aa94',price:0,stock:0,position:0}]}}
   function toDraft(p:AdminProduct):Draft{return {id:p.id,original:p,name:p.name,categoryId:p.categoryId,description:p.description||'',material:p.material||'',supplier:{
     productUrl:p.supplier?.productUrl||'', specifications:p.supplier?.specifications||'',
+    returnPolicyUrl:p.supplier?.returnPolicyUrl||'', returnPolicy:p.supplier?.returnPolicy||'',
   },photos:p.images.map(i=>i.url),active:p.status==='ACTIVE',featured:p.featured,variants:activeVariants(p).map(v=>({key:v.id,id:v.id,sku:v.sku,name:v.name,color:v.color||'#b6aa94',price:v.price,stock:v.stock,position:v.position,imageUrl:v.imageUrl,compareAtPrice:v.compareAtPrice}))}}
 
   async function saveDraft(d:Draft){
@@ -139,6 +140,8 @@ export function Admin({adminEmail}:{adminEmail:string}){
     const supplier = {
       productUrl: supplierUrl(d.supplier.productUrl),
       specifications: d.supplier.specifications.trim() || null,
+      returnPolicyUrl: supplierUrl(d.supplier.returnPolicyUrl),
+      returnPolicy: d.supplier.returnPolicy.trim() || null,
     };
     const supplierChanged = !o || Object.entries(supplier).some(([key, value]) =>
       value !== (o.supplier?.[key as keyof SupplierDraft] ?? null));
@@ -218,13 +221,14 @@ function ProductEditor({draft:d,setDraft,categories,busy,onSubmit}:{draft:Draft;
     setSourceFeedback(null);
   }
 
-  async function importSource() {
-    const url = d.supplier.productUrl.trim();
+  async function importSource(kind: 'product' | 'policy') {
+    const field = kind === 'product' ? 'productUrl' : 'returnPolicyUrl';
+    const url = d.supplier[field].trim();
     setImporting(true);
     setSourceFeedback(null);
     try {
       const response = await fetch('/api/admin/supplier-source', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, kind: 'product' }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, kind }),
       });
       if (!response.ok) {
         const text = response.status === 400
@@ -234,7 +238,10 @@ function ProductEditor({draft:d,setDraft,categories,busy,onSubmit}:{draft:Draft;
         return;
       }
       const result: ImportedSupplier = await response.json();
-      if (!result.description && !result.specifications) {
+      const useful = kind === 'product'
+        ? result.description || result.specifications || result.returnPolicyUrl || result.returnPolicy
+        : result.returnPolicy;
+      if (!useful) {
         setSourceFeedback({ text: 'No encontramos información importable en esta página. Puedes completarla a mano.', error: true });
         return;
       }
@@ -246,6 +253,9 @@ function ProductEditor({draft:d,setDraft,categories,busy,onSubmit}:{draft:Draft;
           supplier: {
             productUrl: result.productUrl || current.supplier.productUrl,
             specifications: result.specifications || current.supplier.specifications,
+            returnPolicyUrl: result.returnPolicyUrl || current.supplier.returnPolicyUrl,
+            returnPolicy: result.returnPolicy || (result.returnPolicyUrl && result.returnPolicyUrl !== current.supplier.returnPolicyUrl
+              ? '' : current.supplier.returnPolicy),
           },
         };
       });
@@ -276,10 +286,18 @@ function ProductEditor({draft:d,setDraft,categories,busy,onSubmit}:{draft:Draft;
         <label>URL del producto<input type="url" pattern="https://.+" maxLength={1000} value={d.supplier.productUrl}
           onChange={e => updateSupplier('productUrl', e.target.value)} placeholder="https://" /></label>
         <button type="button" className="text-link" disabled={!d.supplier.productUrl.trim()}
-          onClick={() => void importSource()}>Importar ficha</button>
+          onClick={() => void importSource('product')}>Importar ficha</button>
       </div>
       <label>Características del proveedor<textarea rows={4} maxLength={5000} value={d.supplier.specifications}
         onChange={e => updateSupplier('specifications', e.target.value)} /></label>
+      <div className="supplier-editor-source">
+        <label>URL de la política de devoluciones<input type="url" pattern="https://.+" maxLength={1000}
+          value={d.supplier.returnPolicyUrl} onChange={e => updateSupplier('returnPolicyUrl', e.target.value)} placeholder="https://" /></label>
+        <button type="button" className="text-link" disabled={!d.supplier.returnPolicyUrl.trim()}
+          onClick={() => void importSource('policy')}>Importar política</button>
+      </div>
+      <label>Condiciones de devolución y reembolso<textarea rows={4} maxLength={8000} value={d.supplier.returnPolicy}
+        onChange={e => updateSupplier('returnPolicy', e.target.value)} /></label>
       {importing && <p role="status">Leyendo la página del proveedor…</p>}
       {sourceFeedback && <p className={sourceFeedback.error ? 'error' : 'success-message'}
         role={sourceFeedback.error ? 'alert' : 'status'}>{sourceFeedback.text}</p>}

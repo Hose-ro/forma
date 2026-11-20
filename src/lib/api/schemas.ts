@@ -20,6 +20,7 @@ export const productSummarySchema = z.object({ ...productBase, imageUrl: z.strin
 export const productPageSchema = page(productSummarySchema);
 const supplierSchema = z.object({
   productUrl: z.string().nullish(), specifications: z.string().nullish(),
+  returnPolicyUrl: z.string().nullish(), returnPolicy: z.string().nullish(),
 });
 export const productDetailSchema = z.object({
   ...productBase, description: z.string().nullish(), material: z.string().nullish(), supplier: supplierSchema.nullish(),

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { getSessionUser } from '@/lib/api/server';
 import { importSupplierPage, supplierPageUrl } from '@/lib/supplier-source';
 
-const input = z.object({ url: z.string().max(1000), kind: z.literal('product') });
+const input = z.object({ url: z.string().max(1000), kind: z.enum(['product', 'policy']) });
 
 export async function POST(request: Request) {
   const user = await getSessionUser();

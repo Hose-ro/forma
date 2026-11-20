@@ -48,6 +48,10 @@ public class Product {
     private String supplierProductUrl;
     @Column(name = "supplier_specifications")
     private String supplierSpecifications;
+    @Column(name = "supplier_return_policy_url", length = 1000)
+    private String supplierReturnPolicyUrl;
+    @Column(name = "supplier_return_policy")
+    private String supplierReturnPolicy;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ProductStatus status = ProductStatus.DRAFT;
@@ -99,9 +103,11 @@ public class Product {
         }
     }
 
-    public void updateSupplier(String productUrl, String specifications) {
+    public void updateSupplier(String productUrl, String specifications, String policyUrl, String policy) {
         this.supplierProductUrl = productUrl;
         this.supplierSpecifications = specifications;
+        this.supplierReturnPolicyUrl = policyUrl;
+        this.supplierReturnPolicy = policy;
     }
 
     public ProductVariant addVariant() {
@@ -160,6 +166,8 @@ public class Product {
     public String getMaterial() { return material; }
     public String getSupplierProductUrl() { return supplierProductUrl; }
     public String getSupplierSpecifications() { return supplierSpecifications; }
+    public String getSupplierReturnPolicyUrl() { return supplierReturnPolicyUrl; }
+    public String getSupplierReturnPolicy() { return supplierReturnPolicy; }
     public ProductStatus getStatus() { return status; }
     public boolean isFeatured() { return featured; }
     public BigDecimal getPrice() { return price; }

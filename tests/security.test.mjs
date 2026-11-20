@@ -25,14 +25,27 @@ test('supplier imports accept public HTTPS hostnames and reject unsafe URL forms
   }
 });
 
-test('supplier product fields become plain text', () => {
+test('supplier product fields and return terms become plain text with a source link', () => {
   const url = new URL('https://supplier.example/products/radio');
   const data = {
     '@type': 'Product',
     description: '<p>Radio de bolsillo.</p><script>Contenido descartado</script>',
     additionalProperty: [{ name: 'Autonomía', value: 12, unitText: 'h' }],
+    offers: { hasMerchantReturnPolicy: {
+      merchantReturnLink: '/policies/refund',
+      returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+      merchantReturnDays: 15,
+      applicableCountry: 'MX',
+    } },
   };
   const product = extractSupplierPage(`<script type="application/ld+json">${JSON.stringify(data).replaceAll('<', '\\u003c')}</script>`, url, 'product');
   assert.equal(product.description, 'Radio de bolsillo.');
   assert.equal(product.specifications, 'Autonomía: 12 h');
+  assert.match(product.returnPolicy, /15 días desde la entrega/);
+  assert.equal(product.returnPolicyUrl, 'https://supplier.example/policies/refund');
+
+  const policy = extractSupplierPage(
+    '<main><nav>Menú</nav><div class="shopify-policy__body"><p>Envío por correo.</p><p>Conserva el comprobante.</p></div></main>',
+    new URL(product.returnPolicyUrl), 'policy');
+  assert.equal(policy.returnPolicy, 'Envío por correo.\nConserva el comprobante.');
 });

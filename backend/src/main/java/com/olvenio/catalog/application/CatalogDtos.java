@@ -49,7 +49,9 @@ public final class CatalogDtos {
 
     public record SupplierContent(
             @Size(max = 1000) @Pattern(regexp = SUPPLIER_URL) String productUrl,
-            @Size(max = 5000) String specifications) {
+            @Size(max = 5000) String specifications,
+            @Size(max = 1000) @Pattern(regexp = SUPPLIER_URL) String returnPolicyUrl,
+            @Size(max = 8000) String returnPolicy) {
     }
 
     public record ProductDetailView(UUID id, String slug, String name, String description, String material,

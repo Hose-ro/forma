@@ -110,10 +110,58 @@ function blocks($: CheerioAPI, selectors: string[], max: number) {
   return content.text().split('\n').map(clean).filter(Boolean).join('\n').slice(0, max);
 }
 
-export function extractSupplierPage(html: string, url: URL, kind: 'product') {
+function policyLink($: CheerioAPI, base: URL) {
+  return $('a[href]').toArray().map(anchor => {
+    const url = supplierPageUrl($(anchor).attr('href') ?? '', base);
+    return url && /(?:refund|return|devoluci[oó]n|devoluciones|reembolso)/i.test(url.pathname) ? url.href : undefined;
+  }).find(Boolean);
+}
+
+function summarizePolicy(policy: Data) {
+  const description = text(policy.description, 8000);
+  if (description) return description;
+  const category = text(policy.returnPolicyCategory).split('/').pop();
+  const days = policy.merchantReturnDays;
+  const countries = entries(policy.applicableCountry).map(value => text(object(value) ? value.name : value, 80)).filter(Boolean);
+  let terms = '';
+  if (category === 'MerchantReturnFiniteReturnWindow' && typeof days === 'number' && Number.isInteger(days) && days >= 0) {
+    terms = `Plazo indicado por el proveedor: ${days} días desde la entrega.`;
+  } else if (category === 'MerchantReturnUnlimitedWindow') {
+    terms = 'El proveedor indica un plazo de devolución ilimitado.';
+  } else if (category === 'MerchantReturnNotPermitted') {
+    terms = 'El proveedor indica que no acepta devoluciones.';
+  }
+  const refundLabels: Record<string, string> = {
+    FullRefund: 'Reembolso completo', ExchangeRefund: 'Cambio', StoreCreditRefund: 'Crédito en tienda',
+  };
+  const refunds = entries(policy.refundType).map(value => text(value).split('/').pop() ?? '')
+    .filter(value => Object.hasOwn(refundLabels, value)).map(value => refundLabels[value]);
+  return [
+    (terms || refunds.length) && countries.length ? `Países indicados por el proveedor: ${countries.join(', ')}.` : '',
+    terms, refunds.length ? `Opciones indicadas por el proveedor: ${refunds.join(', ')}.` : '',
+  ].filter(Boolean).join('\n');
+}
+
+export function extractSupplierPage(html: string, url: URL, kind: 'product' | 'policy') {
   const $ = load(html);
+  if (kind === 'policy') {
+    const returnPolicy = blocks($, ['.shopify-policy__body', '[itemprop="returnPolicy"]', 'main, [role="main"], article'], 8000);
+    return { returnPolicyUrl: url.href, returnPolicy };
+  }
+
   const data = structuredData($);
   const product = data.find(item => isType(item, 'Product') || isType(item, 'ProductGroup'));
+  const productPolicies = [product?.hasMerchantReturnPolicy,
+    ...entries(product?.offers).filter(object).map(offer => offer.hasMerchantReturnPolicy)].flatMap(entries).filter(Boolean);
+  const policyValues = productPolicies.length ? productPolicies
+    : data.flatMap(item => entries(item.hasMerchantReturnPolicy)).filter(Boolean);
+  const policies = policyValues.filter(object).map(policy =>
+    data.find(item => policy['@id'] && item['@id'] === policy['@id'] && item !== policy) ?? policy);
+  const policy = policies.find(item => entries(item.applicableCountry).includes('MX'))
+    ?? (policies.length === 1 ? policies[0] : undefined);
+  const policyLinkValue = text(policy?.merchantReturnLink) || text(policy?.url)
+    || (policyValues.length === 1 && typeof policyValues[0] === 'string' ? policyValues[0] : '');
+  const returnPolicyUrl = supplierPageUrl(policyLinkValue, url)?.href ?? policyLink($, url);
   const description = text(product?.description)
     || blocks($, ['[itemprop="description"]:not(meta)', '.product__description, #product-description, [data-product-description]'], 5000)
     || text($('meta[itemprop="description"], meta[property="og:description"], meta[name="description"]').first().attr('content'));
@@ -135,10 +183,12 @@ export function extractSupplierPage(html: string, url: URL, kind: 'product') {
     productUrl: url.href, description,
     specifications: specifications.join('\n').slice(0, 5000)
       || blocks($, ['#product-specifications, .product-specifications, [data-product-specifications]', '[itemprop="additionalProperty"]'], 5000),
+    returnPolicyUrl,
+    returnPolicy: policy ? summarizePolicy(policy) : '',
   };
 }
 
-export async function importSupplierPage(rawUrl: string, kind: 'product') {
+export async function importSupplierPage(rawUrl: string, kind: 'product' | 'policy') {
   const url = supplierPageUrl(rawUrl);
   if (!url) throw new Error('Invalid supplier URL');
   const page = await download(url);

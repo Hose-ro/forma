@@ -58,7 +58,8 @@ final class CatalogMapper {
     }
 
     private static SupplierContent supplier(Product p) {
-        return new SupplierContent(p.getSupplierProductUrl(), p.getSupplierSpecifications());
+        return new SupplierContent(p.getSupplierProductUrl(), p.getSupplierSpecifications(),
+                p.getSupplierReturnPolicyUrl(), p.getSupplierReturnPolicy());
     }
 
     private static CategoryRef ref(Product p) {

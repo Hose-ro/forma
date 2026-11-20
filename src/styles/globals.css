@@ -243,6 +243,7 @@
 .supplier-editor-source { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
 .supplier-editor-source .text-link { margin-bottom: 5px; }
 .supplier-text, .product-description { white-space: pre-line; overflow-wrap: anywhere; }
+.accordions [role="region"] p + p { margin-top: 12px; }
 .accordions [role="region"] .text-link { margin-top: 8px; }
 
 @media (max-width: 480px) {

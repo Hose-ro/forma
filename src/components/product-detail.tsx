@@ -25,8 +25,13 @@ const coverage=!shipping?'El costo, el plazo y la cobertura de envío se confirm
     </Accordion.Content>
   </Accordion.Item>}
   <Accordion.Item value="returns">
-    <Accordion.Header><Accordion.Trigger>Envíos y devoluciones<Plus size={16}/></Accordion.Trigger></Accordion.Header>
-    <Accordion.Content>{LIVE? `${coverage} El costo y el plazo se muestran antes de pagar. Tienes ${BUSINESS.returnDays} días naturales desde la entrega para solicitar un cambio o devolución.` : 'Política ilustrativa: devolución dentro de 30 días. Esta tienda no procesa compras ni envíos reales.'}</Accordion.Content>
+    <Accordion.Header><Accordion.Trigger>Devoluciones y reembolsos<Plus size={16}/></Accordion.Trigger></Accordion.Header>
+    <Accordion.Content>
+      {p.supplier?.returnPolicy && <p className="supplier-text">{p.supplier.returnPolicy}</p>}
+      {p.supplier?.returnPolicyUrl && <p><a className="text-link" href={p.supplier.returnPolicyUrl} target="_blank" rel="noopener noreferrer">Consultar política del proveedor <ArrowRight size={16}/></a></p>}
+      {!p.supplier?.returnPolicy && !p.supplier?.returnPolicyUrl && <p>La política del proveedor aún no está disponible para este producto.</p>}
+      <Link className="text-link" href="/policies/shipping">Política de Olvenio <ArrowRight size={16}/></Link>
+    </Accordion.Content>
   </Accordion.Item>
   <Accordion.Item value="demo">
     <Accordion.Header><Accordion.Trigger>Sobre esta colección<Plus size={16}/></Accordion.Trigger></Accordion.Header>
