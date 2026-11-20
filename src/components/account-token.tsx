@@ -1,10 +1,12 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 import { api } from '@/lib/api/client';
-import { PasswordField } from './password-field';
 import { ApiError, errorMessage } from '@/lib/api/http';
+import { userSchema } from '@/lib/api/schemas';
+import { useShop } from '@/stores/shop';
+import { PasswordField } from './password-field';
 
 // Landing pages for the single-use links sent by email. The token travels in the URL fragment (#token=…), which
 // browsers never send to a server, and is removed from the address bar as soon as it is read.
@@ -14,11 +16,20 @@ export function AccountToken({mode}:{mode:'reset'|'verify'}){
   const [token,setToken]=useState<string|null>(null);
   const [state,setState]=useState<'idle'|'busy'|'done'>('idle');
   const [error,setError]=useState('');
+  const readLink = useRef(false);
   useEffect(()=>{
+    if (readLink.current) return;
+    readLink.current = true;
     const value=new URLSearchParams(window.location.hash.slice(1)).get('token')||'';
     window.history.replaceState(null,'',window.location.pathname);
     setToken(value);
-    if(mode==='verify'&&value){setState('busy');api.post('/auth/email/verify',null,{token:value}).then(()=>setState('done'),e=>{setError(failure(e));setState('idle')})}
+    if(mode==='verify'&&value){setState('busy');api.post('/auth/email/verify',null,{token:value}).then(async () => {
+      setState('done');
+      const verified = await api.get('/auth/session', userSchema).catch(() => undefined);
+      if (verified && useShop.getState().user?.id === verified.id) {
+        useShop.setState(({ user }) => ({ user: user ? { ...user, emailVerified: verified.emailVerified } : null }));
+      }
+    },e=>{setError(failure(e));setState('idle')})}
   },[mode]);
   async function submit(e:React.FormEvent<HTMLFormElement>){
     e.preventDefault();const fd=new FormData(e.currentTarget);const password=String(fd.get('password'));

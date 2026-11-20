@@ -216,13 +216,15 @@ function Profile({ user }: { user: User }) {
     try {
       if (action === 'resend') {
         await api.post('/auth/email/verification', null);
-        setNotice('Te enviamos un enlace de confirmación.');
+        setNotice('Solicitud recibida. El enlace vence en 48 horas. Revisa también el correo no deseado.');
       } else {
         await logout();
         router.refresh();
       }
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos completar la solicitud.'));
+      setError(action === 'resend' && err instanceof ApiError && err.status === 503
+        ? 'El envío de correos no está disponible en este entorno.'
+        : errorMessage(err, 'No pudimos completar la solicitud.'));
     } finally {
       setPending(null);
     }

@@ -70,9 +70,13 @@ public class AccountRecoveryService {
         enqueue(User.normalizeEmail(email), "PASSWORD_RESET", RESET_TTL);
     }
 
-    public void requestVerification(UUID userId) {
-        users.findById(userId).filter(u -> u.isEnabled() && !u.isEmailVerified())
-                .ifPresent(u -> enqueue(u.getEmail(), "EMAIL_VERIFICATION", VERIFY_TTL));
+    public boolean verificationAvailable() {
+        return mail != null && !from.isBlank() && !frontendUrl.isBlank();
+    }
+
+    public boolean requestVerification(UUID userId) {
+        return users.findById(userId).filter(u -> u.isEnabled() && !u.isEmailVerified())
+                .map(u -> enqueue(u.getEmail(), "EMAIL_VERIFICATION", VERIFY_TTL)).orElse(true);
     }
 
     public void resetPassword(String token, String newPassword) {
@@ -109,12 +113,13 @@ public class AccountRecoveryService {
                 .orElseThrow(() -> new BusinessRuleException("The link is invalid or has expired"));
     }
 
-    private void enqueue(String email, String purpose, Duration ttl) {
+    private boolean enqueue(String email, String purpose, Duration ttl) {
         String normalized = User.normalizeEmail(email);
         // Same address budget and persistence path whether an account exists or not.
-        if (limits.retryAfter("account-mail:" + purpose + ":" + tokens.hash(normalized), 3, Duration.ofMinutes(15)) > 0) return;
+        if (limits.retryAfter("account-mail:" + purpose + ":" + tokens.hash(normalized), 3, Duration.ofMinutes(15)) > 0) return false;
         db.update("insert into account_emails(id,email,purpose,expires_at) values (?,?,?,?)", UUID.randomUUID(),
                 normalized, purpose, java.sql.Timestamp.from(Instant.now().plus(ttl)));
+        return true;
     }
 
     @Scheduled(fixedDelayString = "${app.mail.poll-delay:60000}", initialDelayString = "${app.mail.initial-delay:30000}")
@@ -125,7 +130,7 @@ public class AccountRecoveryService {
                 + "where status in ('PENDING','PROCESSING') and expires_at<=now()");
         db.update("update account_emails set status='FAILED',last_error='CLAIM_EXPIRED',claimed_until=null,claim_id=null "
                 + "where status='PROCESSING' and claimed_until<now() and attempts>=?", MAX_ATTEMPTS);
-        if (mail == null || from.isBlank() || frontendUrl.isBlank()) return;
+        if (!verificationAvailable()) return;
         // Claim only when ready to send, so queued jobs never spend their lease behind an earlier SMTP call.
         for (int i = 0; i < 10; i++) {
             var jobs = db.queryForList("""

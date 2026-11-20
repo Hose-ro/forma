@@ -4,6 +4,7 @@ import com.olvenio.identity.application.AccountService;
 import com.olvenio.identity.application.IdentityDtos.LoginRequest;
 import com.olvenio.identity.application.IdentityDtos.RegisterRequest;
 import com.olvenio.identity.application.IdentityDtos.UserView;
+import com.olvenio.shared.domain.RateLimitException;
 import com.olvenio.shared.security.AuthUser;
 import com.olvenio.shared.security.RequestLimits;
 import io.swagger.v3.oas.annotations.Operation;
@@ -68,7 +69,7 @@ public class AuthController {
                              HttpServletResponse response) {
         UserView user = accounts.register(req);
         startSession(req.email(), req.password(), request, response);
-        recovery.requestVerification(user.id());
+        if (recovery.verificationAvailable()) recovery.requestVerification(user.id());
         return user;
     }
 
@@ -110,9 +111,10 @@ public class AuthController {
 
     @Operation(summary = "Send the verification link again to the signed-in account")
     @PostMapping("/email/verification")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public void resendVerification(@AuthenticationPrincipal AuthUser user) {
-        recovery.requestVerification(user.id());
+    public ResponseEntity<Void> resendVerification(@AuthenticationPrincipal AuthUser user) {
+        if (!recovery.verificationAvailable()) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        if (!recovery.requestVerification(user.id())) throw new RateLimitException();
+        return ResponseEntity.accepted().build();
     }
 
     @Operation(summary = "Log in with email and password (session cookie)")
