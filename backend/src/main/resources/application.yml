@@ -96,3 +96,7 @@ app:
     collector-id: ${MERCADOPAGO_COLLECTOR_ID:}
     frontend-url: ${APP_PUBLIC_FRONTEND_URL:}
     backend-url: ${APP_PUBLIC_BACKEND_URL:}
+
+  paypal:
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
