@@ -34,6 +34,8 @@ public class OrderAddress {
     @Column(nullable = false)
     private String line1;
     private String line2;
+    @Column(length = 160)
+    private String neighborhood;
     @Column(nullable = false)
     private String city;
     @Column(nullable = false)
@@ -49,12 +51,13 @@ public class OrderAddress {
     }
 
     OrderAddress(Order order, Type type, String recipientName, String line1, String line2, String city,
-                 String state, String postalCode, String country, String phone) {
+                 String state, String postalCode, String country, String phone, String neighborhood) {
         this.order = order;
         this.type = type;
         this.recipientName = recipientName;
         this.line1 = line1;
         this.line2 = line2;
+        this.neighborhood = neighborhood;
         this.city = city;
         this.state = state;
         this.postalCode = postalCode;
@@ -66,6 +69,7 @@ public class OrderAddress {
     public String getRecipientName() { return recipientName; }
     public String getLine1() { return line1; }
     public String getLine2() { return line2; }
+    public String getNeighborhood() { return neighborhood; }
     public String getCity() { return city; }
     public String getState() { return state; }
     public String getPostalCode() { return postalCode; }

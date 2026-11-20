@@ -13,6 +13,7 @@ import com.olvenio.orders.application.OrderMapper;
 import com.olvenio.orders.domain.Order;
 import com.olvenio.orders.domain.OrderItem;
 import com.olvenio.orders.infrastructure.OrderRepository;
+import com.olvenio.shared.address.PostalDirectory;
 import com.olvenio.shared.config.AppProperties;
 import com.olvenio.shared.domain.BusinessRuleException;
 import com.olvenio.shared.domain.ConflictException;
@@ -53,13 +54,14 @@ public class CheckoutService {
     private final SecretTokens tokens;
     private final AppProperties props;
     private final Clock clock;
+    private final PostalDirectory postalDirectory;
     /** How long an unpaid order keeps its stock. The payment preference expires at the same instant. */
     @org.springframework.beans.factory.annotation.Value("${app.checkout.reservation-ttl:24h}")
     private java.time.Duration reservationTtl = java.time.Duration.ofHours(24);
 
     public CheckoutService(CartService cartService, CartRepository carts, ProductVariantRepository variants,
                            OrderRepository orders, SecretTokens tokens, AppProperties props,
-                           Optional<Clock> clock) {
+                           Optional<Clock> clock, PostalDirectory postalDirectory) {
         this.cartService = cartService;
         this.carts = carts;
         this.variants = variants;
@@ -67,10 +69,14 @@ public class CheckoutService {
         this.tokens = tokens;
         this.props = props;
         this.clock = clock.orElse(Clock.systemUTC());
+        this.postalDirectory = postalDirectory;
     }
 
     @Transactional
     public OrderView createQuote(QuoteRequest req, String cartToken, String guestToken) {
+        var a = req.shippingAddress();
+        if (!"MX".equals(a.country())) throw new InvalidRequestException("Por ahora solo enviamos a México.");
+        var postal = postalDirectory.validate(a.postalCode(), a.state(), a.city(), blankToNull(a.neighborhood()));
         Cart cart = cartService.authorizedForUpdate(req.cartId(), cartToken);
         if (cart.getItems().isEmpty()) {
             throw new BusinessRuleException("Cart is empty");
@@ -90,8 +96,8 @@ public class CheckoutService {
             return new OrderPricing.Line(v.unitPrice(), item.getQuantity());
         }).toList();
         var goodsTotal = OrderPricing.compute(lines, Money.zero(cart.getCurrency())).subtotal().rounded();
-        var shippingRate = props.checkout().shippingFor(req.shippingAddress().state(), goodsTotal)
-                .orElseThrow(() -> new BusinessRuleException("We do not deliver to that state"));
+        var shippingRate = props.checkout().shippingFor(postal.state(), goodsTotal)
+                .orElseThrow(() -> new InvalidRequestException("Por ahora no hacemos envíos a ese estado."));
         OrderPricing.Breakdown price = OrderPricing.compute(lines, Money.of(shippingRate, cart.getCurrency()));
 
         // Guests: the order is bound to the browser's guest token. Users: access goes through the session,
@@ -111,9 +117,8 @@ public class CheckoutService {
                     v.getImageUrl() != null ? v.getImageUrl() : p.primaryImageUrl().orElse(null),
                     v.unitPrice(), item.getQuantity(), price.lineTotals().get(i));
         }
-        var a = req.shippingAddress();
-        order.shipTo(a.recipientName(), a.line1(), blankToNull(a.line2()), a.city(), a.state(), a.postalCode(),
-                a.country(), blankToNull(a.phone()));
+        order.shipTo(a.recipientName(), a.line1(), blankToNull(a.line2()), postal.municipality(), postal.state(),
+                postal.postalCode(), a.country(), blankToNull(a.phone()), blankToNull(a.neighborhood()));
         order.applyTotals(price.subtotal(), price.shipping(), price.total());
         return OrderMapper.view(orders.saveAndFlush(order), false);
     }

@@ -1,5 +1,6 @@
 package com.olvenio.shared.config;
 
+import com.olvenio.shared.address.PostalDirectory;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Arrays;
@@ -64,18 +65,17 @@ public record AppProperties(String frontendOrigin, String sessionSecret, boolean
         /** Server-side shipping price for a destination state, or empty when the store does not deliver there. */
         public java.util.Optional<BigDecimal> shippingFor(String state, BigDecimal subtotal) {
             BigDecimal rate = null;
-            for (var e : zoneRates().entrySet()) if (norm(e.getKey()).equals(norm(state))) rate = e.getValue();
+            String destination = PostalDirectory.canonicalState(state);
+            for (var entry : zoneRates().entrySet()) {
+                if (PostalDirectory.same(PostalDirectory.canonicalState(entry.getKey()), destination))
+                    rate = entry.getValue();
+            }
             if (rate == null) {
                 if (shippingOnlyZones) return java.util.Optional.empty();
                 rate = shippingFlat;
             }
             if (shippingFreeFrom != null && subtotal.compareTo(shippingFreeFrom) >= 0) rate = BigDecimal.ZERO;
             return java.util.Optional.of(rate);
-        }
-
-        private static String norm(String s) {
-            return s == null ? "" : java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
-                    .replaceAll("\\p{M}", "").trim().toLowerCase(java.util.Locale.ROOT);
         }
     }
 

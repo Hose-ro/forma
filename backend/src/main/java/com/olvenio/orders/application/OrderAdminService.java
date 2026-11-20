@@ -6,10 +6,12 @@ import com.olvenio.orders.domain.OrderStatus;
 import com.olvenio.orders.infrastructure.OrderRepository;
 import com.olvenio.payments.application.ReservationService;
 import com.olvenio.shared.domain.NotFoundException;
+import com.olvenio.shared.domain.ConflictException;
 import com.olvenio.shared.security.CurrentUser;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,16 +21,25 @@ public class OrderAdminService {
     private final OrderRepository orders;
     private final ReservationService reservations;
     private final JdbcTemplate db;
+    private final boolean production;
 
-    public OrderAdminService(OrderRepository orders, ReservationService reservations, JdbcTemplate db) {
+    public OrderAdminService(OrderRepository orders, ReservationService reservations, JdbcTemplate db, Environment env) {
         this.orders = orders;
         this.reservations = reservations;
         this.db = db;
+        this.production = env.matchesProfiles("prod");
     }
 
     @Transactional
     public OrderView fulfill(UUID id, String status, String carrier, String trackingNumber) {
         Order order = orders.lockById(id).orElseThrow(() -> new NotFoundException("Order not found"));
+        if ("SHIPPED".equals(status)) {
+            if (Boolean.TRUE.equals(db.queryForObject("""
+                    select exists (select 1 from shipping_labels where order_id=? and status in ('PROCESSING','REVIEW'))
+                    """, Boolean.class, id)))
+                throw new ConflictException("Revisa primero el intento de guía en Envia.");
+            rejectSandboxGuide(id, trackingNumber);
+        }
         order.fulfill(status, carrier, trackingNumber, CurrentUser.id().orElse(null), Instant.now());
         return OrderMapper.view(orders.saveAndFlush(order), true);
     }
@@ -37,6 +48,7 @@ public class OrderAdminService {
     @Transactional
     public OrderView correctFulfillment(UUID id, String status, String carrier, String trackingNumber, String note) {
         Order order = orders.lockById(id).orElseThrow(() -> new NotFoundException("Order not found"));
+        rejectSandboxGuide(id, trackingNumber);
         boolean trackingChanged = order.correctFulfillment(status, carrier, trackingNumber, note,
                 CurrentUser.id().orElse(null), Instant.now());
         OrderView view = OrderMapper.view(orders.saveAndFlush(order), true);
@@ -50,6 +62,13 @@ public class OrderAdminService {
             db.update("update orders set shipping_email_sent_at=null where id=?", id);
         }
         return view;
+    }
+
+    private void rejectSandboxGuide(UUID id, String trackingNumber) {
+        if (production && trackingNumber != null && Boolean.TRUE.equals(db.queryForObject("""
+                select exists (select 1 from shipping_labels where order_id=? and not live and lower(tracking_number)=lower(?))
+                """, Boolean.class, id, trackingNumber.trim())))
+            throw new ConflictException("La guía de pruebas de Envia no sirve para un envío real.");
     }
 
     /**

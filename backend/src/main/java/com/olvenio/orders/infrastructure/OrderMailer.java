@@ -1,7 +1,9 @@
 package com.olvenio.orders.infrastructure;
 
+import com.olvenio.aftersales.application.OrderTracking;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -31,10 +33,11 @@ public class OrderMailer {
     private final String store;
     private final String frontendUrl;
     private final TransactionTemplate tx;
+    private final OrderTracking tracking;
 
     public OrderMailer(JdbcTemplate db, JavaMailSender mail, @Value("${app.mail.from:}") String from,
                        @Value("${app.mail.notify:}") String notify, @Value("${app.store-name:Olvenio}") String store,
-                       @Value("${app.payments.frontend-url:}") String frontendUrl, TransactionTemplate tx) {
+                       @Value("${app.payments.frontend-url:}") String frontendUrl, TransactionTemplate tx, OrderTracking tracking) {
         if (from.isBlank()) throw new IllegalStateException("APP_MAIL_FROM is required when SPRING_MAIL_HOST is set");
         this.db = db;
         this.mail = mail;
@@ -43,10 +46,11 @@ public class OrderMailer {
         this.store = store;
         this.frontendUrl = frontendUrl.replaceAll("/$", "");
         this.tx = tx;
+        this.tracking = tracking;
     }
 
     private static final int MAX_ATTEMPTS = 8;
-    private static final String ORDER_COLUMNS = "select id,order_number,email,customer_first_name,subtotal,shipping_total,"
+    private static final String ORDER_COLUMNS = "select id,order_number,email,customer_first_name,subtotal,shipping_total,user_id,"
             + "total,currency,carrier,tracking_number,status,fulfillment_status from orders where id=?";
 
     @Scheduled(fixedDelayString = "${app.mail.poll-delay:60000}", initialDelayString = "${app.mail.initial-delay:30000}")
@@ -135,10 +139,16 @@ public class OrderMailer {
         t.append("\nSubtotal: ").append(money(o.get("subtotal"), o))
                 .append("\nEnvío: ").append(money(o.get("shipping_total"), o))
                 .append("\nTotal pagado: ").append(money(o.get("total"), o)).append("\n\n");
-        for (var a : db.queryForList("select recipient_name,line1,line2,city,state,postal_code from order_addresses where order_id=? and type='SHIPPING'", o.get("id")))
+        var shipping = db.queryForList("""
+                select recipient_name,line1,line2,neighborhood,city,state,postal_code
+                from order_addresses where order_id=? and type='SHIPPING'
+                """, o.get("id"));
+        for (var a : shipping) {
             t.append("Enviaremos a:\n").append(a.get("recipient_name")).append('\n').append(a.get("line1"))
-                    .append(a.get("line2") == null ? "" : ", " + a.get("line2")).append('\n').append(a.get("city")).append(", ")
-                    .append(a.get("state")).append(", C.P. ").append(a.get("postal_code")).append("\n\n");
+                    .append(a.get("line2") == null ? "" : ", " + a.get("line2")).append('\n');
+            if (a.get("neighborhood") != null) t.append(a.get("neighborhood")).append(", ");
+            t.append(a.get("city")).append(", ").append(a.get("state")).append(", C.P. ").append(a.get("postal_code")).append("\n\n");
+        }
         t.append("Te avisaremos por este medio cuando tu pedido salga a reparto.\n");
         return t.append(footer(o)).toString();
     }
@@ -148,11 +158,15 @@ public class OrderMailer {
                 .append("Tu pedido ").append(o.get("order_number")).append(" ya fue enviado.\n");
         if (o.get("carrier") != null) t.append("Paquetería: ").append(o.get("carrier")).append('\n');
         if (o.get("tracking_number") != null) t.append("Número de guía: ").append(o.get("tracking_number")).append('\n');
+        String trackingUrl = tracking.carrierUrl((UUID) o.get("id"), (String) o.get("carrier"), (String) o.get("tracking_number"));
+        if (trackingUrl != null) t.append("Rastrea tu envío: ").append(trackingUrl).append('\n');
         return t.append(footer(o)).toString();
     }
 
     private String footer(Map<String, Object> o) {
-        return (frontendUrl.isBlank() ? "" : "\nConsulta tu pedido: " + frontendUrl + "/account/orders/" + o.get("id") + "\n")
+        UUID id = (UUID) o.get("id");
+        String path = o.get("user_id") == null ? tracking.emailPath(id, Instant.now()) : "/account/orders/" + id;
+        return (frontendUrl.isBlank() ? "" : "\nConsulta tu pedido: " + frontendUrl + path + "\n")
                 + "\nSi tienes dudas, responde a este correo.\n\n" + store + "\n";
     }
 

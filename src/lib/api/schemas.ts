@@ -48,7 +48,7 @@ export const orderSchema = z.object({
   customer: z.object({ email: z.string(), firstName: z.string(), lastName: z.string(), phone: z.string().nullish() }),
   shippingAddress: z.object({
     recipientName: z.string(), line1: z.string(), line2: z.string().nullish(), city: z.string(), state: z.string(),
-    postalCode: z.string(), country: z.string(), phone: z.string().nullish(),
+    postalCode: z.string(), country: z.string(), phone: z.string().nullish(), neighborhood: z.string().nullish(),
   }).nullish(),
   currency: z.string(),
   items: z.array(z.object({

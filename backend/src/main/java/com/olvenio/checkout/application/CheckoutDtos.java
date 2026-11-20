@@ -25,7 +25,7 @@ public final class CheckoutDtos {
                                @NotBlank @Size(max = 100) String state,
                                @NotBlank @Size(max = 20) String postalCode,
                                @NotBlank @Pattern(regexp = "^[A-Z]{2}$", message = "must be an ISO 3166-1 alpha-2 code") String country,
-                               @Size(max = 30) String phone) {
+                               @Size(max = 30) String phone, @Size(max = 160) String neighborhood) {
     }
 
     public record QuoteRequest(@NotNull UUID cartId, @NotNull @Valid CustomerInput customer,

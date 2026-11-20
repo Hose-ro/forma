@@ -9,12 +9,15 @@ export const shippingRulesSchema = z.object({
 });
 export type ShippingRules = z.infer<typeof shippingRulesSchema>;
 
-export const MX_STATES = ['Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche', 'Chiapas', 'Chihuahua', 'Ciudad de México', 'Coahuila', 'Colima', 'Durango', 'Estado de México', 'Guanajuato', 'Guerrero', 'Hidalgo', 'Jalisco', 'Michoacán', 'Morelos', 'Nayarit', 'Nuevo León', 'Oaxaca', 'Puebla', 'Querétaro', 'Quintana Roo', 'San Luis Potosí', 'Sinaloa', 'Sonora', 'Tabasco', 'Tamaulipas', 'Tlaxcala', 'Veracruz', 'Yucatán', 'Zacatecas'];
-
-const norm = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').trim().toLowerCase();
-
-/** States the store delivers to. */
-export const deliveryStates = (rules: ShippingRules | null) => (rules?.onlyZones ? rules.zones.map(z => z.state) : MX_STATES);
+const norm = (state: string) => {
+  const name = state.normalize('NFD').replace(/\p{M}/gu, '').trim().toLowerCase();
+  const aliases: Record<string, string> = {
+    mexico: 'estado de mexico', edomex: 'estado de mexico', cdmx: 'ciudad de mexico',
+    'distrito federal': 'ciudad de mexico', 'coahuila de zaragoza': 'coahuila',
+    'michoacan de ocampo': 'michoacan', 'veracruz de ignacio de la llave': 'veracruz',
+  };
+  return aliases[name] ?? name;
+};
 
 /** Shipping cost for a state and subtotal, or null when the store does not deliver there. */
 export function shippingFor(rules: ShippingRules, state: string, subtotal: number): number | null {

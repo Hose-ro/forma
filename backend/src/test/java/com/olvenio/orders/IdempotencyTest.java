@@ -39,7 +39,8 @@ class IdempotencyTest {
     private final ProductVariantRepository variants = mock(ProductVariantRepository.class);
     private final CartRepository carts = mock(CartRepository.class);
     private final CheckoutService checkout = new CheckoutService(mock(CartService.class), carts,
-            variants, orders, tokens, props, Optional.of(Clock.fixed(NOW, ZoneOffset.UTC)));
+            variants, orders, tokens, props, Optional.of(Clock.fixed(NOW, ZoneOffset.UTC)),
+            mock(com.olvenio.shared.address.PostalDirectory.class));
 
     private Order quote(String token, Instant expiresAt) {
         Order o = Order.quote(null, null, "guest@example.com", "Ana", "Pérez", null, "MXN", tokens.hash(token),

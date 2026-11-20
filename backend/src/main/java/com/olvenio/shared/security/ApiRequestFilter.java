@@ -19,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /** Bounds JSON bodies, including chunked requests, before MVC parsing. Limits IP and account separately. */
 public final class ApiRequestFilter extends OncePerRequestFilter {
     private static final int MAX_BODY = 128 * 1024;
+    private static final int MAX_INVOICE_BODY = 3 * 1024 * 1024;
     private final RequestLimits limits;
     private final ObjectMapper mapper;
 
@@ -73,6 +74,7 @@ public final class ApiRequestFilter extends OncePerRequestFilter {
         String bucket = "read";
         int maximum = 240;
         Duration window = Duration.ofMinutes(1);
+        if (path.startsWith("/api/v1/checkout/postal-codes/")) { bucket = "postal"; maximum = 30; }
         if (write) {
             bucket = "write";
             maximum = 90;
@@ -84,6 +86,7 @@ public final class ApiRequestFilter extends OncePerRequestFilter {
             }
             // One purchase touches quote, order and payment: separate budgets so a step never starves the next.
             else if (path.equals("/api/v1/checkout/quotes")) { bucket = "quote"; maximum = 15; }
+            else if (path.endsWith("/tracking") && path.startsWith("/api/v1/orders/")) { bucket = "tracking"; maximum = 30; }
             else if (path.equals("/api/v1/orders")) { bucket = "order"; maximum = 15; }
             else if (path.startsWith("/api/v1/payments/")) { bucket = "payment"; maximum = 15; }
             else if (path.equals("/api/v1/carts")) { bucket = "cart"; maximum = 20; }
@@ -111,12 +114,15 @@ public final class ApiRequestFilter extends OncePerRequestFilter {
             reject(response, HttpStatus.TOO_MANY_REQUESTS, "Too many requests");
             return;
         }
-        if (request.getContentLengthLong() > MAX_BODY) {
+        int maxBody = "POST".equals(request.getMethod())
+                && path.matches("/api/v1/admin/orders/[a-fA-F0-9-]{36}/invoice")
+                && CurrentUser.isAdmin() ? MAX_INVOICE_BODY : MAX_BODY;
+        if (request.getContentLengthLong() > maxBody) {
             reject(response, HttpStatus.PAYLOAD_TOO_LARGE, "Request body too large");
             return;
         }
-        byte[] body = request.getInputStream().readNBytes(MAX_BODY + 1);
-        if (body.length > MAX_BODY) {
+        byte[] body = request.getInputStream().readNBytes(maxBody + 1);
+        if (body.length > maxBody) {
             reject(response, HttpStatus.PAYLOAD_TOO_LARGE, "Request body too large");
             return;
         }

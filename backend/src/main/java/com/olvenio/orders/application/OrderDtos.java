@@ -15,7 +15,7 @@ public final class OrderDtos {
     }
 
     public record AddressView(String recipientName, String line1, String line2, String city, String state,
-                              String postalCode, String country, String phone) {
+                              String postalCode, String country, String phone, String neighborhood) {
     }
 
     public record OrderItemView(UUID productId, UUID variantId, String sku, String productName, String productSlug,

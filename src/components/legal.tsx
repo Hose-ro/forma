@@ -250,6 +250,7 @@ export function PrivacyNotice() {
                 ))}
               </div>
               <p>
+                Si solicitas factura, guardamos los datos fiscales que ingreses y los archivos PDF y XML correspondientes.
                 Por seguridad, procesamos tu dirección IP de forma temporal para limitar intentos de acceso abusivos; no se guarda en tu
                 perfil. <strong>No solicitamos datos personales sensibles</strong> ni información de menores de edad.
               </p>
@@ -264,7 +265,7 @@ export function PrivacyNotice() {
                     <li>Procesar, confirmar y dar seguimiento a tus pedidos.</li>
                     <li>Mostrar tu historial de compras.</li>
                     <li>Proteger el sitio frente a fraudes y accesos no autorizados.</li>
-                    <li>Atender tus solicitudes y aclaraciones.</li>
+                    <li>Atender cambios, devoluciones y aclaraciones, y gestionar tu factura cuando la solicites.</li>
                   </ul>
                 </div>
                 <div>
@@ -308,6 +309,9 @@ export function PrivacyNotice() {
                   de cuenta se capturan directamente en su plataforma y nunca pasan por nuestros servidores. Si cambias de método antes de
                   pagar, el procesador anterior solo conserva el intento cancelado.{LIVE ? '' : ' En esta demostración operan solo en modo de prueba.'}
                 </li>
+                <li><strong>Postali</strong> recibe el código postal para consultar las colonias y verificar el municipio y estado.</li>
+                <li><strong>El operador logístico</strong> recibe los datos de contacto y domicilio que necesita para cotizar o entregar el paquete.</li>
+                <li><strong>El proveedor de facturación</strong> recibe tus datos fiscales cuando solicitas un CFDI.</li>
                 <li><strong>Autoridades competentes</strong>, cuando exista un requerimiento fundado y motivado.</li>
               </ul>
               <p className="muted">Estas transferencias no requieren tu consentimiento por ser necesarias para la relación que mantienes con nosotros.</p>

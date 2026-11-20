@@ -52,7 +52,7 @@ El servidor calcula el cargo; el checkout y la política de envíos muestran exa
 ## 4. Infraestructura de producción
 
 1. **Base de datos**: crea un proyecto Neon nuevo (no una rama del de staging). Crea el rol `olvenio_runtime` con una contraseña privada para `DATABASE_USERNAME`. Ejecuta `deploy/neon/01_bootstrap.sql`,
-   arranca la API una vez (Flyway aplica V1–V10) y luego `deploy/neon/02_runtime_grants.sql`. Usa contraseñas nuevas.
+   arranca la API una vez (Flyway aplica V1–V14) y luego `deploy/neon/02_runtime_grants.sql`. Usa contraseñas nuevas.
 2. **Respaldos**: activa la restauración a un punto en el tiempo de Neon (plan de pago, ≥ 7 días) y programa un `pg_dump` semanal a otro almacenamiento.
 3. **API**: en Render crea un Blueprint nuevo con ruta `deploy/render.production.yaml` y completa las variables marcadas.
    Usa un plan siempre encendido: una instancia dormida retrasa los webhooks de pago.
@@ -104,3 +104,13 @@ Estos puntos están implementados pero **no se han ejercitado contra servicios r
   (tabla `order_emails`; `status='FAILED'` requiere revisión manual). También el enlace de recuperación de contraseña y el
   de confirmación de correo (necesitan `APP_PUBLIC_FRONTEND_URL` y `APP_MAIL_FROM`).
 - **Catálogo desde cero**: en una base vacía crea categoría, producto con fotografías propias y variantes, y completa una compra.
+
+
+## Seguimiento y posventa
+
+- **Códigos postales.** El backend consulta [Postali](https://postali.app/api) con el código de cinco dígitos. El cliente elige una colonia y el servidor valida municipio y estado antes de crear la cotización. Comprueba el acceso saliente a `postali.app` desde Render.
+- **Seguimiento.** Configura `APP_PUBLIC_FRONTEND_URL` y SMTP. Los correos de invitado incluyen un enlace de seguimiento válido durante 90 días. El enlace abre el estado de un solo pedido y su guía. Los clientes registrados consultan el pedido en su cuenta.
+- **Alertas.** En **Administración → Resumen**, consulta pagos en revisión, correos fallidos, pedidos sin preparar, solicitudes de cambio o factura e intentos de guía pendientes de conciliación. Los correos fallidos de pedidos se pueden poner de nuevo en cola desde el aviso. Ajusta `APP_PREPARATION_ALERT_HOURS` si el umbral de 24 horas cambia.
+- **Cambios.** Ajusta `APP_RETURN_DAYS` en Render y `NEXT_PUBLIC_RETURN_DAYS` en Vercel al plazo publicado. El cliente solicita el cambio o devolución en su pedido. Administración gestiona la respuesta desde la ficha y ejecuta cualquier reembolso con el procesador de pago.
+- **Facturas.** El titular de la cuenta puede solicitar el CFDI desde un pedido pagado. Emítelo en el facturador habitual y adjunta PDF y XML timbrado desde **Administración → Pedidos → Pedido → Solicitud de factura**. El sistema coteja los datos del XML y el total. El titular puede descargar ambos archivos desde su cuenta. El correo del negocio sigue disponible para clientes invitados.
+- **Guías de Envia.** Configura en Render `APP_ENVIA_TOKEN`, `APP_ENVIA_ORIGIN_JSON` y `APP_ENVIA_CARRIERS` (códigos separados por comas, máximo cuatro). Para el origen, incluye `name`, `street`, `district` cuando aplique, `city`, `state` con el código de Envia, `postalCode`, `country` con valor `MX` y `phone`. Ve a **Administración → Pedidos → Pedido → Envío**, captura el paquete, cotiza y selecciona un servicio. Genera e imprime la guía antes de marcar el pedido como enviado. Si hubo un timeout, concilia el intento en Envia antes de comprar otra guía. Los envíos manuales se mantienen disponibles desde la lista de pedidos. Usa primero `APP_ENVIA_ENVIRONMENT=sandbox` en staging y pasa a `production` con el token de producción en el perfil `prod`. [Documentación de Envia](https://docs.envia.com/docs/domestic-shipping-workflow)

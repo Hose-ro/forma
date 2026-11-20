@@ -18,7 +18,7 @@ public final class OrderMapper {
 
     public static OrderView view(Order o, boolean includeEvents) {
         AddressView address = o.shippingAddress().map(a -> new AddressView(a.getRecipientName(), a.getLine1(),
-                a.getLine2(), a.getCity(), a.getState(), a.getPostalCode(), a.getCountry(), a.getPhone())).orElse(null);
+                a.getLine2(), a.getCity(), a.getState(), a.getPostalCode(), a.getCountry(), a.getPhone(), a.getNeighborhood())).orElse(null);
         List<OrderItemView> items = o.getItems().stream().map(i -> new OrderItemView(i.getProductId(),
                 i.getVariantId(), i.getSku(), i.getProductName(), i.getProductSlug(), i.getVariantName(),
                 i.getImageUrl(), display(i.getUnitPrice()), i.getQuantity(), display(i.getLineTotal()))).toList();

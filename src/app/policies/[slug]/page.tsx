@@ -36,7 +36,7 @@ function live(rules: ShippingRules | null): Record<string, Policy> {
         { heading: 'Zonas y costo de envío', body: shippingCosts(rules) },
         { heading: 'Tiempos de entrega', body: [
           `Preparamos y despachamos tu pedido en ${B.handlingTime} a partir de la confirmación del pago. La entrega estimada es de ${rules?.deliveryEstimate ?? '3 a 7 días hábiles'} desde el despacho, según la paquetería y el destino.`,
-          'Cuando tu pedido sale a reparto te enviamos un correo con la paquetería y el número de guía. También puedes consultar el estado en la sección «Cuenta» de este sitio.',
+          'Cuando tu pedido sale a reparto te enviamos un correo con la paquetería y el número de guía. También puedes consultar el estado desde el enlace del correo o en tu cuenta.',
           'Verifica que la dirección y el teléfono sean correctos: un dato erróneo puede generar reintentos o devoluciones con costo adicional. Si no hay quien reciba, la paquetería hará un nuevo intento o dejará un aviso para recolección.',
         ] },
         { heading: 'Paquetes dañados o incompletos', body: [
@@ -44,7 +44,7 @@ function live(rules: ShippingRules | null): Record<string, Policy> {
         ] },
         { heading: 'Cambios y devoluciones', body: [
           `Tienes ${B.returnDays} días naturales a partir de la entrega para solicitar un cambio o devolución. El producto debe estar sin uso, en su empaque original y con todos sus accesorios.`,
-          `Para iniciar el trámite escribe a ${contact} indicando tu número de pedido y el motivo. Te responderemos con las instrucciones de envío.`,
+          `Para iniciar el trámite, abre tu pedido y selecciona «Solicitar cambio o devolución». También puedes escribir a ${contact} con tu número de pedido y el motivo. Te responderemos con las instrucciones de envío.`,
           'Si la devolución se debe a un defecto o a un error nuestro, cubrimos el costo del envío de regreso. En cualquier otro caso, el envío de regreso corre por tu cuenta.',
           'Además, conforme al artículo 56 de la Ley Federal de Protección al Consumidor, puedes revocar tu compra sin responsabilidad dentro de los cinco días hábiles siguientes a la entrega, siempre que el producto no haya sido usado.',
         ] },
@@ -75,7 +75,7 @@ function live(rules: ShippingRules | null): Record<string, Policy> {
           'Tu pedido queda confirmado cuando el procesador confirma el pago; recibirás un correo de confirmación. Los pagos en efectivo o por transferencia se confirman cuando el procesador recibe el depósito, que debe hacerse antes de que venza la referencia. Un pedido sin pago puede cancelarse y sus piezas volver al inventario.',
           'Puedes cambiar de método antes de pagar; el intento anterior se cancela. Si un pago en efectivo o por transferencia sigue pendiente, debes esperar a que venza antes de elegir otro método.',
           'Podemos cancelar y reembolsar íntegramente un pedido ante un error evidente de precio o de inventario, o por sospecha fundada de fraude.',
-          `Si necesitas factura (CFDI), solicítala a ${B.email} dentro del mes de tu compra, indicando tus datos fiscales y número de pedido.`,
+          `Puedes solicitar tu factura (CFDI) desde el pedido en tu cuenta, o escribir a ${B.email} con tus datos fiscales y el número de pedido.`,
         ] },
         { heading: 'Envíos, cambios y devoluciones', body: [
           'Las zonas de entrega, tarifas, plazos y el procedimiento de cambio, devolución y garantía se describen en la página «Envíos, cambios y devoluciones», que forma parte de estos términos.',

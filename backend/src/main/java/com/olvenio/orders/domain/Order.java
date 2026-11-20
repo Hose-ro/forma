@@ -143,11 +143,11 @@ public class Order {
     }
 
     public void shipTo(String recipient, String line1, String line2, String city, String state, String postalCode,
-                       String country, String phone) {
+                       String country, String phone, String neighborhood) {
         requireDraft();
         addresses.removeIf(a -> a.getType() == OrderAddress.Type.SHIPPING);
         addresses.add(new OrderAddress(this, OrderAddress.Type.SHIPPING, recipient, line1, line2, city, state,
-                postalCode, country, phone));
+                postalCode, country, phone, neighborhood));
     }
 
     public void applyTotals(Money subtotal, Money shipping, Money total) {
@@ -331,6 +331,7 @@ public class Order {
     public String getCarrier() { return carrier; }
     public String getTrackingNumber() { return trackingNumber; }
     public Instant getShippedAt() { return shippedAt; }
+    public Instant getDeliveredAt() { return deliveredAt; }
     public String getOrderNumber() { return orderNumber; }
     public UUID getUserId() { return userId; }
     public UUID getCartId() { return cartId; }

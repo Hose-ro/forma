@@ -51,10 +51,10 @@ public final class IdentityDtos {
             @NotBlank @Size(max = 20) String postalCode,
             @NotBlank @Pattern(regexp = "^[A-Z]{2}$", message = "must be an ISO 3166-1 alpha-2 code") String country,
             @Size(max = 30) String phone,
-            boolean makeDefault) {
+            boolean makeDefault, @Size(max = 160) String neighborhood) {
     }
 
     public record AddressView(UUID id, String label, String recipientName, String line1, String line2, String city,
-                              String state, String postalCode, String country, String phone, boolean isDefault) {
+                              String state, String postalCode, String country, String phone, boolean isDefault, String neighborhood) {
     }
 }
