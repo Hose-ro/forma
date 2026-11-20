@@ -1,6 +1,9 @@
 package com.olvenio.identity.domain;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -12,7 +15,9 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -42,6 +47,10 @@ public class User {
     private Instant termsAcceptedAt;
     @Column(name = "terms_version", length = 32, updatable = false)
     private String termsVersion;
+    @ElementCollection
+    @CollectionTable(name = "user_category_interests", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "category_id")
+    private Set<UUID> categoryInterests = new HashSet<>();
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
     @Column(name = "updated_at", nullable = false)
@@ -95,6 +104,12 @@ public class User {
         termsVersion = version;
     }
 
+    public void updateCategoryInterests(Set<UUID> ids) {
+        categoryInterests.retainAll(ids);
+        categoryInterests.addAll(ids);
+    }
+
+    public Set<UUID> getCategoryInterests() { return Set.copyOf(categoryInterests); }
     public boolean isEmailVerified() { return emailVerifiedAt != null; }
     public UUID getId() { return id; }
     public String getEmail() { return email; }

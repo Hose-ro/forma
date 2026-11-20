@@ -348,3 +348,30 @@
 .account-form .account-terms label { display: flex; flex-direction: row; align-items: center; gap: 8px; min-height: 30px; }
 .account-terms input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
 .account-terms a { margin-left: 23px; text-decoration: underline; text-underline-offset: 3px; font-size: 0.8rem; }
+
+.account-interests { border-top: 1px solid var(--color-stone); margin-top: 24px; padding-top: 22px; }
+.account-interests h2 { margin-bottom: 7px; }
+.account-interests p { color: var(--color-muted); font-size: 0.82rem; }
+.account-interests fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 10px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.account-interests label {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-stone);
+  background: var(--color-canvas);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+.account-interests label:has(input:checked) { border-color: var(--color-accent); }
+.account-interests input, .account-terms input { accent-color: var(--color-accent); }

@@ -100,7 +100,7 @@ class SecurityRegressionTest {
         String email = "session-test@example.com";
         when(users.loadUserByUsername(email)).thenReturn(new AuthUser(id, email,
                 encoder.encode("test-password"), "CUSTOMER", true));
-        when(accounts.profile(id)).thenReturn(new UserView(id, email, "Test", "User", null, "CUSTOMER", Instant.now(), false));
+        when(accounts.profile(id)).thenReturn(new UserView(id, email, "Test", "User", null, "CUSTOMER", Instant.now(), false, List.of()));
         MockHttpSession session = new MockHttpSession();
         String oldId = session.getId();
         mvc.perform(post("/api/v1/auth/login").session(session).with(csrf()).contentType("application/json")

@@ -13,8 +13,9 @@ export function serverGet<S extends z.ZodType>(path: string, schema: S, headers?
 
 /** The logged-in user according to the backend session cookie of the current request, or null. */
 export async function getSessionUser() {
-  const cookie = (await cookies()).toString();
-  if (!cookie) return null;
+  const jar = await cookies();
+  if (!jar.has('OLVENIO_SESSION')) return null;
+  const cookie = jar.toString();
   try {
     return await serverGet('/auth/me', userSchema, { cookie });
   } catch (e) {

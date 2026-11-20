@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +31,7 @@ public class CatalogController {
     @GetMapping("/products")
     public PageResponse<ProductSummaryView> products(
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) List<UUID> categoryIds,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) Boolean available,
@@ -37,7 +39,7 @@ public class CatalogController {
             @Parameter(description = "featured | price_asc | price_desc | newest") @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-        return catalog.search(new ProductFilter(category, minPrice, maxPrice, available, q), sort, page, size);
+        return catalog.search(new ProductFilter(category, minPrice, maxPrice, available, q), sort, page, size, categoryIds);
     }
 
     @GetMapping("/products/{slug}")

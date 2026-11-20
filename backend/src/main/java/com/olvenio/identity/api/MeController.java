@@ -3,6 +3,7 @@ package com.olvenio.identity.api;
 import com.olvenio.identity.application.AccountService;
 import com.olvenio.identity.application.IdentityDtos.AddressRequest;
 import com.olvenio.identity.application.IdentityDtos.AddressView;
+import com.olvenio.identity.application.IdentityDtos.UpdateInterestsRequest;
 import com.olvenio.identity.application.IdentityDtos.UpdateProfileRequest;
 import com.olvenio.identity.application.IdentityDtos.UserView;
 import com.olvenio.shared.security.AuthUser;
@@ -41,6 +42,11 @@ public class MeController {
     @PatchMapping
     public UserView update(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody UpdateProfileRequest req) {
         return accounts.updateProfile(user.id(), req);
+    }
+
+    @PatchMapping("/interests")
+    public UserView updateInterests(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody UpdateInterestsRequest req) {
+        return accounts.updateInterests(user.id(), req.categoryIds());
     }
 
     @GetMapping("/addresses")

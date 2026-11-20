@@ -6,12 +6,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowUpRight, CheckCircle2, Mail, Package } from 'lucide-react';
 import { api } from '@/lib/api/client';
 import { ApiError, errorMessage } from '@/lib/api/http';
-import { orderPageSchema } from '@/lib/api/schemas';
+import { categoriesSchema, orderPageSchema, userSchema } from '@/lib/api/schemas';
 import { LIVE } from '@/lib/business';
 import { ORDER_STATUS, formatDate, money } from '@/lib/data';
 import { safeRedirect } from '@/lib/safe-redirect';
 import { useShop } from '@/stores/shop';
-import type { OrderSummary, User } from '@/types';
+import type { Category, OrderSummary, User } from '@/types';
 import { PasswordField } from './password-field';
 
 type Mode = 'login' | 'register' | 'forgot';
@@ -29,6 +29,7 @@ export function Account() {
       <Orders key={user.id} signedIn />
       <aside className="account-sidebar">
         <Profile key={user.id} user={user} />
+        <Interests key={user.id} user={user} />
       </aside>
     </div>
   </div>;
@@ -251,5 +252,69 @@ function Profile({ user }: { user: User }) {
         {pending === 'logout' ? 'Cerrando…' : 'Cerrar sesión'}
       </button>
     </div>
+  </section>;
+}
+
+function Interests({ user }: { user: User }) {
+  const router = useRouter();
+  const [categories, setCategories] = useState<Category[] | null>(null);
+  const [selected, setSelected] = useState(user.categoryInterests);
+  const [feedback, setFeedback] = useState<{ message: string; error: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const changed = selected.length !== user.categoryInterests.length
+    || selected.some(id => !user.categoryInterests.includes(id));
+
+  useEffect(() => {
+    let active = true;
+    api.get('/categories', categoriesSchema).then(items => {
+      if (!active) return;
+      setCategories(items);
+      setSelected(ids => ids.filter(id => items.some(category => category.id === id)));
+    }, err => {
+      if (active) setFeedback({ message: errorMessage(err, 'No pudimos cargar las categorías.'), error: true });
+    });
+    return () => { active = false; };
+  }, []);
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setFeedback(null);
+    try {
+      const updated = await api.patch('/me/interests', userSchema, { categoryIds: selected });
+      const store = useShop.getState();
+      if (store.user?.id === updated.id) useShop.setState({ user: updated });
+      setSelected(updated.categoryInterests);
+      setFeedback({ message: 'Preferencias guardadas.', error: false });
+      router.refresh();
+    } catch (err) {
+      setFeedback({ message: errorMessage(err, 'No pudimos guardar tus preferencias.'), error: true });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <section className="account-interests">
+    <h2 id="interests-title">Tus intereses</h2>
+    <p id="interests-help">Elige qué categorías quieres ver primero en el inicio. Es opcional.</p>
+    <form onSubmit={save}>
+      {categories?.length ? <>
+        <fieldset aria-labelledby="interests-title" aria-describedby="interests-help" disabled={busy}>
+          {categories.map(category => {
+            const checked = selected.includes(category.id);
+            return <label key={category.id}>
+              <input type="checkbox" checked={checked} disabled={!checked && selected.length >= 20} onChange={() => {
+                setFeedback(null);
+                setSelected(ids => checked ? ids.filter(id => id !== category.id) : [...ids, category.id]);
+              }} />
+              <span>{category.name}</span>
+            </label>;
+          })}
+        </fieldset>
+        <button className="text-link" disabled={busy || !changed}>{busy ? 'Guardando…' : 'Guardar preferencias'}</button>
+      </> : categories ? <p>No hay categorías disponibles.</p> : !feedback && <p role="status">Cargando categorías…</p>}
+      {feedback && <p className={feedback.error ? 'error' : 'success-message'}
+        role={feedback.error ? 'alert' : 'status'}>{feedback.message}</p>}
+    </form>
   </section>;
 }

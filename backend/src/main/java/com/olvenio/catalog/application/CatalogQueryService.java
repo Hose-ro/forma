@@ -20,6 +20,7 @@ import com.olvenio.shared.api.PageResponse;
 import com.olvenio.shared.domain.InvalidRequestException;
 import com.olvenio.shared.domain.NotFoundException;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,14 @@ public class CatalogQueryService {
     }
 
     public PageResponse<ProductSummaryView> search(ProductFilter f, String sort, Integer page, Integer size) {
+        return search(f, sort, page, size, null);
+    }
+
+    public PageResponse<ProductSummaryView> search(ProductFilter f, String sort, Integer page, Integer size,
+                                                   List<UUID> categoryIds) {
+        if (categoryIds != null && categoryIds.size() > 20) {
+            throw new InvalidRequestException("Too many categories");
+        }
         validateFilters(f);
         if (f.minPrice() != null && f.maxPrice() != null && f.minPrice().compareTo(f.maxPrice()) > 0) {
             throw new InvalidRequestException("minPrice must be less than or equal to maxPrice");
@@ -48,6 +57,9 @@ public class CatalogQueryService {
         Specification<com.olvenio.catalog.domain.Product> spec = Specification.allOf(
                 hasStatus(ProductStatus.ACTIVE), inCategory(f.category()), priceAtLeast(f.minPrice()),
                 priceAtMost(f.maxPrice()), available(f.available()), nameContains(f.q()));
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            spec = spec.and((root, query, cb) -> root.get("category").get("id").in(categoryIds));
+        }
         var pageable = PageRequests.of(page, size, ProductSort.parse(sort).sort());
         return PageResponse.of(products.findAll(spec, pageable), CatalogMapper::summary);
     }

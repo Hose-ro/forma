@@ -7,7 +7,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 public final class IdentityDtos {
@@ -45,8 +47,10 @@ public final class IdentityDtos {
     }
 
     public record UserView(UUID id, String email, String firstName, String lastName, String phone, String role,
-                           Instant createdAt, boolean emailVerified) {
+                           Instant createdAt, boolean emailVerified, List<UUID> categoryInterests) {
     }
+
+    public record UpdateInterestsRequest(@NotNull @Size(max = 20) Set<@NotNull UUID> categoryIds) {}
 
     public record AddressRequest(
             @Size(max = 60) String label,

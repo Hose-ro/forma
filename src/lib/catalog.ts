@@ -6,7 +6,7 @@ import { FALLBACK_IMAGE } from './data';
 import type { Category, Product, ProductPage } from '@/types';
 
 // Catalog adapter: reads the real catalog from the REST API (server side) and maps it to the storefront model.
-export type CatalogQuery = { category?: string; q?: string; minPrice?: string; maxPrice?: string; available?: boolean; sort?: string; page?: number; size?: number };
+export type CatalogQuery = { category?: string; categoryIds?: string[]; q?: string; minPrice?: string; maxPrice?: string; available?: boolean; sort?: string; page?: number; size?: number };
 
 const SORTS: Record<string, string> = { featured: 'featured', 'price-asc': 'price_asc', 'price-desc': 'price_desc', newest: 'newest' };
 
@@ -18,6 +18,7 @@ export const catalogRepository = {
   async list(query: CatalogQuery = {}): Promise<ProductPage> {
     const params = new URLSearchParams();
     if (query.category) params.set('category', query.category);
+    for (const id of query.categoryIds ?? []) params.append('categoryIds', id);
     if (query.q) params.set('q', query.q.slice(0, 100));
     if (query.minPrice && Number(query.minPrice) >= 0) params.set('minPrice', String(Number(query.minPrice)));
     if (query.maxPrice && Number(query.maxPrice) >= 0) params.set('maxPrice', String(Number(query.maxPrice)));

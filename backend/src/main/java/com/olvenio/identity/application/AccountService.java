@@ -1,5 +1,6 @@
 package com.olvenio.identity.application;
 
+import com.olvenio.catalog.infrastructure.CategoryRepository;
 import com.olvenio.identity.application.IdentityDtos.AddressRequest;
 import com.olvenio.identity.application.IdentityDtos.AddressView;
 import com.olvenio.identity.application.IdentityDtos.RegisterRequest;
@@ -16,6 +17,7 @@ import com.olvenio.shared.domain.ConflictException;
 import com.olvenio.shared.domain.NotFoundException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -31,9 +33,11 @@ public class AccountService {
     private final PasswordEncoder encoder;
     private final PostalDirectory postalDirectory;
 
+    private final CategoryRepository categories;
 
     public AccountService(UserRepository users, AddressRepository addresses, PasswordEncoder encoder,
-                          PostalDirectory postalDirectory) {
+                          PostalDirectory postalDirectory, CategoryRepository categories) {
+        this.categories = categories;
         this.users = users;
         this.addresses = addresses;
         this.encoder = encoder;
@@ -61,6 +65,16 @@ public class AccountService {
     public UserView updateProfile(UUID userId, UpdateProfileRequest req) {
         User user = load(userId);
         user.updateProfile(req.firstName(), req.lastName(), req.phone());
+        return toView(user);
+    }
+
+    @Transactional
+    public UserView updateInterests(UUID userId, Set<UUID> ids) {
+        User user = load(userId);
+        if (categories.findAllById(ids).size() != ids.size()) {
+            throw new BusinessRuleException("One or more categories no longer exist");
+        }
+        user.updateCategoryInterests(ids);
         return toView(user);
     }
 
@@ -104,7 +118,7 @@ public class AccountService {
 
     static UserView toView(User u) {
         return new UserView(u.getId(), u.getEmail(), u.getFirstName(), u.getLastName(), u.getPhone(),
-                u.getRole().name(), u.getCreatedAt(), u.isEmailVerified());
+                u.getRole().name(), u.getCreatedAt(), u.isEmailVerified(), u.getCategoryInterests().stream().sorted().toList());
     }
 
     static AddressView toView(Address a) {

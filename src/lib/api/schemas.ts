@@ -43,7 +43,7 @@ export const cartSchema = z.object({
 
 export const userSchema = z.object({
   id: z.string(), email: z.string(), firstName: z.string(), lastName: z.string(), phone: z.string().nullish(),
-  role: z.enum(['CUSTOMER', 'ADMIN']), createdAt: z.string(), emailVerified: z.boolean().optional(),
+  role: z.enum(['CUSTOMER', 'ADMIN']), createdAt: z.string(), emailVerified: z.boolean().optional(), categoryInterests: z.array(z.string()).default([]),
 });
 
 const orderStatus = z.enum(['DRAFT', 'PENDING_PAYMENT', 'PAID', 'PAYMENT_REVIEW', 'REFUNDED', 'PARTIALLY_REFUNDED', 'CANCELLED']);
