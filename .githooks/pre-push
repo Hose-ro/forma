@@ -1,0 +1,14 @@
+#!/bin/sh
+# Bloquea el push si algún commit nuevo contiene un secreto (cubre commits hechos con --no-verify).
+. "$(dirname "$0")/_gitleaks.sh"
+require_gitleaks
+ZERO=0000000000000000000000000000000000000000
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$ZERO" ] && continue # borrado de rama
+  if [ "$remote_sha" = "$ZERO" ]; then
+    range="$local_sha --not --remotes" # rama nueva: solo commits que el remoto aún no tiene
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  gitleaks git --log-opts="$range" --redact --no-banner --config "$ROOT/.gitleaks.toml" "$ROOT" || leak_found
+done

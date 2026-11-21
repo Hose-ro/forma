@@ -62,6 +62,37 @@ Revisar soporte/parches de estas líneas antes de producción y antes de agregar
   provocar consultas al proveedor (el límite y la deduplicación evitan cambiar dos veces el pedido).
   Revisar política de reintentos/frescura con el proveedor antes de habilitar pagos reales.
 
+## Detección de secretos
+
+- `gitleaks` (config en `.gitleaks.toml`) revisa los cambios preparados antes de cada commit y los commits
+  nuevos antes de cada push (`.githooks/`). `npm install` activa los hooks (`core.hooksPath`); requiere
+  `brew install gitleaks`. Escaneo manual del historial: `npm run scan:secrets`.
+- El workflow `.github/workflows/secrets.yml` escanea todo el historial en cada push y pull request.
+- GitHub tiene activados el escaneo de secretos y la protección al hacer push (solo patrones de proveedores).
+- Los valores falsos de pruebas van en la lista permitida de `.gitleaks.toml`; nunca permitir una ruta completa.
+- El repositorio es público: un secreto que llegue a GitHub se considera filtrado aunque se borre después.
+
+## Rotación de secretos
+
+Si un secreto sale de tu máquina (commit, captura, chat, paquete npm sospechoso), rótalo primero y limpia
+después: borrar el archivo o reescribir el historial no lo vuelve secreto. Staging y producción nunca
+comparten valores, así que rota en el entorno afectado (Render `render.yaml` / `render.production.yaml`,
+Vercel y Neon de cada uno).
+
+| Secreto | Dónde se genera | Dónde se actualiza | Efecto al rotar |
+| --- | --- | --- | --- |
+| `MERCADOPAGO_ACCESS_TOKEN` | Mercado Pago → Tus integraciones → Credenciales → renovar | Render | Ninguno visible; redeploy |
+| `MERCADOPAGO_WEBHOOK_SECRET` | Mercado Pago → Webhooks → regenerar clave secreta | Render | Las notificaciones firmadas con la clave vieja se rechazan; el proveedor reintenta |
+| `PAYPAL_CLIENT_SECRET` | PayPal Developer → la app → generar secreto nuevo y borrar el viejo | Render | Ninguno visible; redeploy |
+| `DATABASE_PASSWORD`, `DATABASE_MIGRATION_PASSWORD` | Neon → Roles → restablecer contraseña | Render (y `DATABASE_URL` si la incluye) | Las conexiones viejas fallan hasta el redeploy |
+| `APP_SESSION_SECRET` | Render → generar valor (mínimo 32 caracteres aleatorios) | Render | Cierra todas las sesiones e invalida enlaces pendientes de recuperación/verificación |
+| `APP_PROXY_SECRET` / `BACKEND_PROXY_SECRET` | `openssl rand -base64 32` | Render **y** Vercel con el mismo valor | Mientras no coincidan, el límite por visitante cae al límite compartido del proxy |
+| `SPRING_MAIL_PASSWORD` | Proveedor SMTP → nueva contraseña de aplicación y revocar la vieja | Render | Los correos se reintentan desde la cola tras el redeploy |
+| Contraseña del admin | Desde la tienda: "Olvidé mi contraseña" con `APP_ADMIN_EMAIL` | — | Cierra sus sesiones. Cambiar `APP_ADMIN_PASSWORD` no sirve: solo se usa al crear el admin |
+
+Después de rotar: redeploy, prueba un pago de prueba y un correo, revisa en el panel de cada proveedor que no
+haya uso del valor viejo y actualiza tu `backend/.env` / `.env.staging.local` local.
+
 ## Archivos de esta revisión
 
 Rutas relativas a la raíz del proyecto; `.env` solo cambia de permisos a 0600.

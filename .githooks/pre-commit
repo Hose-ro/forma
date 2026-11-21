@@ -1,0 +1,5 @@
+#!/bin/sh
+# Bloquea el commit si los cambios preparados contienen un secreto.
+. "$(dirname "$0")/_gitleaks.sh"
+require_gitleaks
+gitleaks git --pre-commit --staged --redact --no-banner --config "$ROOT/.gitleaks.toml" "$ROOT" || leak_found
