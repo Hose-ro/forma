@@ -4,10 +4,12 @@ import { Fulfillment } from './admin-fulfillment';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { LayoutDashboard, Package, ShoppingBag, Truck, Boxes, Settings, ArrowUpRight, Plus, Pencil, Trash2, X, Tags } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, Truck, Boxes, Settings, ArrowUpRight, Plus, Pencil, Trash2, X, Tags, Images } from 'lucide-react';
 import { AdminPayments } from './admin-payments';
 import { AdminAlerts } from './admin-alerts';
 import { api } from '@/lib/api/client';
+import { IMAGE_HOSTS, photoProblem } from '@/lib/photo-url';
+import { AdminHome } from './admin-home';
 import { ApiError, errorMessage } from '@/lib/api/http';
 import { adminProductPageSchema, adminProductSchema, categoriesSchema, categorySchema, dashboardSchema, deleteResultSchema, orderPageSchema, orderSchema } from '@/lib/api/schemas';
 import { useShop } from '@/stores/shop';
@@ -15,10 +17,9 @@ import { FALLBACK_IMAGE, ORDER_STATUS, PHOTO_LIBRARY, formatDate, money, supplie
 import type { AdminProduct, Category, Dashboard, OrderSummary } from '@/types';
 
 // Admin workspace backed by /api/v1/admin/* (ROLE_ADMIN enforced by the server on every call).
-const tabs=[['overview','Resumen',LayoutDashboard],['products','Productos',Package],['categories','Categorías',Tags],['orders','Pedidos',ShoppingBag],['payments','Pagos',ShoppingBag],['suppliers','Proveedores',Truck],['inventory','Inventario',Boxes],['settings','Configuración',Settings]] as const;
+const tabs=[['overview','Resumen',LayoutDashboard],['products','Productos',Package],['categories','Categorías',Tags],['home','Portada',Images],['orders','Pedidos',ShoppingBag],['payments','Pagos',ShoppingBag],['suppliers','Proveedores',Truck],['inventory','Inventario',Boxes],['settings','Configuración',Settings]] as const;
 const PRODUCT_STATUS:Record<AdminProduct['status'],string>={ACTIVE:'Activo',PAUSED:'Pausado',DRAFT:'Borrador',ARCHIVED:'Archivado'};
 const PAGE_SIZE=25;
-const IMAGE_HOSTS=(process.env.NEXT_PUBLIC_IMAGE_HOSTS||'').split(',').filter(Boolean);
 type AdminVariant=AdminProduct['variants'][number];
 type DraftVariant={key:string;id?:string;sku:string;name:string;color:string;price:number;stock:number;position:number;imageUrl?:string|null;compareAtPrice?:number|null;removed?:boolean};
 type SupplierDraft = { productUrl: string; specifications: string; returnPolicyUrl: string; returnPolicy: string };
@@ -38,16 +39,6 @@ const activeVariants=(p:AdminProduct)=>p.variants.filter(v=>v.active);
 const thumb=(p:AdminProduct)=>p.images[0]?.url||p.variants[0]?.imageUrl||FALLBACK_IMAGE;
 const newKey=()=>crypto.randomUUID();
 
-/** Same rule next/image enforces on the storefront: site-relative paths or https on an allow-listed host. */
-function photoProblem(url:string){
-  if(/^\/(?!\/)\S*$/.test(url))return '';
-  try{
-    const u=new URL(url);
-    if(u.protocol!=='https:')return 'La fotografía debe usar una dirección https://.';
-    if(!IMAGE_HOSTS.includes(u.hostname))return `El dominio ${u.hostname} no está autorizado para imágenes. Agrégalo a IMAGE_ALLOWED_HOSTS en el despliegue de la tienda (hoy: ${IMAGE_HOSTS.join(', ')||'ninguno'}).`;
-    return '';
-  }catch{return 'Escribe una dirección completa (https://…) o una ruta del sitio (/products/archivo.jpg).'}
-}
 
 function adminFailure(e:unknown){
   if(e instanceof FormError)return e.message;
@@ -197,6 +188,7 @@ export function Admin({adminEmail}:{adminEmail:string}){
 {tab==='products'&&<>{!categories.length&&<div className="admin-panel"><div className="admin-empty"><Tags size={32}/><h3>Primero crea una categoría.</h3><p>Cada producto pertenece a una categoría de la tienda.</p><Link className="text-link" href="/admin?view=categories">Ir a categorías <ArrowUpRight size={16}/></Link></div></div>}{editing&&<ProductEditor key={editing.id||'new'} draft={editing} setDraft={setEditing} categories={categories} busy={busy} onSubmit={submitDraft}/>}<div className="admin-panel"><form className="admin-filters" role="search" onSubmit={e=>{e.preventDefault();setProductPage(0);setProductQuery(search.trim())}}><label className="sr-only" htmlFor="admin-search">Buscar productos</label><input id="admin-search" placeholder="Buscar producto y pulsar Enter…" maxLength={100} value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Filtrar por estado" value={productStatus} onChange={e=>{setProductPage(0);setProductStatus(e.target.value)}}><option value="">Todos los estados</option>{Object.entries(PRODUCT_STATUS).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></form><div className="table-scroll"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{products.items.map(p=><tr key={p.id}><td><div className="table-product">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={thumb(p)} alt="" width={42} height={52} loading="lazy"/>{p.status==='ACTIVE'?<Link href={`/product/${p.slug}`}>{p.name}</Link>:<span>{p.name}</span>}</div></td><td>{categoryName(p.categoryId)}</td><td>{money(p.price)}</td><td><button className={`status-button ${p.status==='ACTIVE'?'active':''}`} disabled={busy||p.status==='ARCHIVED'} onClick={()=>run(async()=>{const next=p.status==='ACTIVE'?'PAUSED':'ACTIVE';await api.patch(`/admin/products/${p.id}`,adminProductSchema,{status:next});return next==='ACTIVE'?'Producto activado: ya es visible en la tienda.':'Producto pausado: ya no aparece en la tienda.'})}>{PRODUCT_STATUS[p.status]}</button></td><td><div className="table-actions"><button className="icon-button" aria-label={`Editar ${p.name}`} onClick={()=>{setEditing(toDraft(p));clear()}}><Pencil size={16}/></button>{deleting===p.id?<><button className="danger-text" disabled={busy} onClick={async()=>{await run(async()=>{const r=await api.delete(`/admin/products/${p.id}`,deleteResultSchema);return r.outcome==='ARCHIVED'?'El producto tiene pedidos: se archivó para conservar el historial.':'Producto eliminado del catálogo.'});setDeleting('')}}>Eliminar</button><button onClick={()=>setDeleting('')}>Cancelar</button></>:<button className="icon-button" aria-label={`Eliminar ${p.name}`} onClick={()=>setDeleting(p.id)}><Trash2 size={16}/></button>}</div></td></tr>)}</tbody></table>{!products.items.length&&<p className="admin-empty">{productQuery||productStatus?'Ningún producto coincide con el filtro.':'Todavía no hay productos.'}</p>}</div><Pager page={productPage} data={products} onChange={setProductPage} label="productos"/></div></>}
 
 {tab==='categories'&&<Categories categories={categories} busy={busy} run={run}/>}
+{tab==='home'&&<AdminHome categories={categories}/>}
 
 {tab==='payments'&&<AdminPayments selectedOrder={params.get('order')}/>}
 

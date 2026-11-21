@@ -16,6 +16,8 @@ import com.olvenio.orders.application.OrderDtos.OrderView;
 import com.olvenio.orders.application.OrderQueryService;
 import com.olvenio.orders.domain.OrderStatus;
 import com.olvenio.shared.security.CurrentUser;
+import com.olvenio.storefront.application.HomeHeroDtos.HeroView;
+import com.olvenio.storefront.application.HomeHeroService;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -39,12 +41,14 @@ public class AdminService {
     private final AuditLogRepository audit;
     private final org.springframework.jdbc.core.JdbcTemplate db;
     private final org.springframework.transaction.support.TransactionTemplate tx;
+    private final HomeHeroService heroes;
 
     public AdminService(CatalogAdminService catalog, OrderQueryService orderQueries, OrderAdminService orderAdmin,
                         AuditLogRepository audit, org.springframework.jdbc.core.JdbcTemplate db,
-                        org.springframework.transaction.support.TransactionTemplate tx) {
+                        org.springframework.transaction.support.TransactionTemplate tx, HomeHeroService heroes) {
         this.db = db;
         this.tx = tx;
+        this.heroes = heroes;
         this.catalog = catalog;
         this.orderQueries = orderQueries;
         this.orderAdmin = orderAdmin;
@@ -128,6 +132,17 @@ public class AdminService {
         Map<String, Object> details = new HashMap<>();
         details.put("fulfillmentStatus", status);
         record("ORDER_FULFILLMENT", "order", id, details);
+        return view;
+    }
+
+    public java.util.List<HeroView> heroes() {
+        return heroes.all();
+    }
+
+    @Transactional
+    public HeroView replaceHero(String variant, boolean enabled, Object content) {
+        HeroView view = heroes.replace(variant, enabled, content);
+        record("HOME_HERO_UPDATED", "home_hero", null, Map.of("variant", variant, "enabled", enabled));
         return view;
     }
 

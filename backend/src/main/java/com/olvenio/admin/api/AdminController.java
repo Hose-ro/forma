@@ -16,6 +16,12 @@ import com.olvenio.orders.application.OrderDtos.OrderView;
 import com.olvenio.orders.application.OrderQueryService;
 import com.olvenio.orders.domain.OrderStatus;
 import com.olvenio.shared.api.PageResponse;
+import com.olvenio.storefront.application.HomeHeroDtos.HeroA;
+import com.olvenio.storefront.application.HomeHeroDtos.HeroB;
+import com.olvenio.storefront.application.HomeHeroDtos.HeroC;
+import com.olvenio.storefront.application.HomeHeroDtos.HeroD;
+import com.olvenio.storefront.application.HomeHeroDtos.HeroUpdate;
+import com.olvenio.storefront.application.HomeHeroDtos.HeroView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -28,6 +34,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -156,6 +163,36 @@ public class AdminController {
     @PostMapping("/orders/{id}/cancel")
     public OrderView cancelOrder(@PathVariable UUID id, @Valid @RequestBody(required = false) CancelRequest req) {
         return admin.cancelOrder(id, req == null ? null : req.note());
+    }
+
+    // ---- Home heroes ----
+    @GetMapping("/home/heroes")
+    public List<HeroView> heroes() {
+        return admin.heroes();
+    }
+
+    @Operation(summary = "Replace hero A (headline, main scene and two category tiles)")
+    @PutMapping("/home/heroes/a")
+    public HeroView replaceHeroA(@Valid @RequestBody HeroUpdate<HeroA> req) {
+        return admin.replaceHero("a", req.enabled(), req.content());
+    }
+
+    @Operation(summary = "Replace hero B (one column per category)")
+    @PutMapping("/home/heroes/b")
+    public HeroView replaceHeroB(@Valid @RequestBody HeroUpdate<HeroB> req) {
+        return admin.replaceHero("b", req.enabled(), req.content());
+    }
+
+    @Operation(summary = "Replace hero C (product campaigns); products must exist and be active")
+    @PutMapping("/home/heroes/c")
+    public HeroView replaceHeroC(@Valid @RequestBody HeroUpdate<HeroC> req) {
+        return admin.replaceHero("c", req.enabled(), req.content());
+    }
+
+    @Operation(summary = "Replace hero D (moments of the day); products must exist and be active")
+    @PutMapping("/home/heroes/d")
+    public HeroView replaceHeroD(@Valid @RequestBody HeroUpdate<HeroD> req) {
+        return admin.replaceHero("d", req.enabled(), req.content());
     }
 
     // ---- Dashboard ----

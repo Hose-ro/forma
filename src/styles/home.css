@@ -148,3 +148,13 @@
   .hm-hero h1 { animation: none; }
   .hm-tile img, .hm-worldbar-media { transition: none; }
 }
+
+/* Admin: home hero editor (Portada). */
+.hero-status p { font-size: 13px; margin-top: 8px; }
+.hero-editor-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.hero-editor .category-form { margin-bottom: 0; }
+.hero-fieldset { margin: 4px 0 0; padding: 16px; border: 1px solid #e6e4dd; }
+.hero-fieldset legend { padding: 0 6px; font-size: 12px; font-weight: 600; }
+.hero-fieldset .category-form { margin: 0; }
+.hero-editor textarea { resize: vertical; }
+.hero-editor .text-link { gap: 8px; }

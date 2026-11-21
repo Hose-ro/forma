@@ -40,5 +40,6 @@ export const api = {
   get: <S extends z.ZodType>(path: string, schema: S) => call('GET', path, schema),
   post: <S extends z.ZodType>(path: string, schema: S | null, body?: unknown, headers?: Record<string, string>) => call('POST', path, schema, body, headers),
   patch: <S extends z.ZodType>(path: string, schema: S | null, body?: unknown) => call('PATCH', path, schema, body),
+  put: <S extends z.ZodType>(path: string, schema: S | null, body?: unknown) => call('PUT', path, schema, body),
   delete: <S extends z.ZodType>(path: string, schema: S | null) => call('DELETE', path, schema),
 };

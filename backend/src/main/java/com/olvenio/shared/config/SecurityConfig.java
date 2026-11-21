@@ -81,7 +81,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/error").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/home/**").permitAll()
                         .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/session", "/api/v1/auth/register",
                                 "/api/v1/auth/login", "/api/v1/auth/password/forgot", "/api/v1/auth/password/reset",
                                 "/api/v1/auth/email/verify").permitAll()
@@ -128,7 +128,7 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource(AppProperties props) {
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOrigins(props.allowedOrigins());
-        cors.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Content-Type", "Accept", "X-XSRF-TOKEN",
                 CART_TOKEN_HEADER, ORDER_TOKEN_HEADER, IDEMPOTENCY_HEADER));
         cors.setAllowCredentials(true);

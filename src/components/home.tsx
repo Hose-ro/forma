@@ -7,7 +7,9 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { FALLBACK_IMAGE, money } from '@/lib/data';
-import { EDITORIAL, HERO_A, type HeroCampaignContent, type HeroMomentContent, type Moment } from '@/lib/home-heroes';
+import {
+  DEFAULT_HEROES, EDITORIAL, type HeroAContent, type HeroBContent, type HeroCampaignContent, type HeroMomentContent, type Moment,
+} from '@/lib/home-heroes';
 import type { Category, Product } from '@/types';
 import { Reveal } from './ui';
 import { ProductCard } from './product-card';
@@ -15,10 +17,10 @@ import { ProductCard } from './product-card';
 export type HeroCampaign = HeroCampaignContent & { product: Product };
 export type HeroMoment = HeroMomentContent & { products: Product[] };
 export type HomeHero =
-  | { variant: 'a' }
-  | { variant: 'b' }
+  | { variant: 'a'; content: HeroAContent }
+  | { variant: 'b'; content: HeroBContent }
   | { variant: 'c'; campaigns: HeroCampaign[] }
-  | { variant: 'd'; moments: HeroMoment[]; initial: Moment };
+  | { variant: 'd'; title: string; italic?: string | null; moments: HeroMoment[]; initial: Moment };
 export type WorldShelf = { category: Category; products: Product[]; total: number };
 export type GiftShelf = { id: string; label: string; href: string; products: Product[] };
 
@@ -55,10 +57,10 @@ export function Home({ hero, featured, categories, worlds, gifts, personalized }
   }, []);
 
   return <div ref={scene}>
-    {hero.variant === 'b' && categories.length >= 2 ? <HeroB categories={categories} />
+    {hero.variant === 'b' && categories.length >= 2 ? <HeroB content={hero.content} categories={categories} />
       : hero.variant === 'c' ? <HeroC campaigns={hero.campaigns} />
-      : hero.variant === 'd' ? <HeroD moments={hero.moments} initial={hero.initial} />
-      : <HeroA categories={categories} />}
+      : hero.variant === 'd' ? <HeroD title={hero.title} italic={hero.italic} moments={hero.moments} initial={hero.initial} />
+      : <HeroA content={hero.variant === 'a' ? hero.content : DEFAULT_HEROES.a} categories={categories} />}
 
     <WorldBar categories={categories} />
 
@@ -113,32 +115,32 @@ function Choices<T extends string>({ label, options, value, onChange, className 
   </div>;
 }
 
-function HeroA({ categories }: { categories: Category[] }) {
-  const { main, tiles } = HERO_A;
+function HeroA({ content, categories }: { content: HeroAContent; categories: Category[] }) {
+  const { main, tiles } = content;
   const worldNames = categories.slice(0, 3).map(category => category.name).join(' · ');
   return <section className="hm-hero">
     <div className="hm-hero-meta">
       <span>{worldNames ? `${worldNames} — una sola mirada.` : 'Una sola mirada.'}</span>
-      <span>Temporada / 01</span>
+      {content.meta && <span>{content.meta}</span>}
     </div>
     <div className="hm-hero-head">
-      <h1>Cosas bien elegidas, <i>para cada parte de tu día.</i></h1>
+      <h1>{content.title}{content.italic && <> <i>{content.italic}</i></>}</h1>
       <div className="hm-hero-note">
-        <p>Lo que escuchas, lo que habitas y lo que llevas contigo. Una selección con el mismo criterio.</p>
-        <Link className="button" href="/shop">Explorar la tienda <ArrowUpRight size={18} /></Link>
+        {content.body && <p>{content.body}</p>}
+        <Link className="button" href="/shop">{content.ctaLabel} <ArrowUpRight size={18} /></Link>
       </div>
     </div>
     <div className="hm-mosaic">
       <Link className="hm-tile hm-tile-main" href={shopCategory(main.categorySlug)}>
-        <Image className="hm-parallax" src={main.image} alt={main.alt} fill priority sizes="(max-width: 900px) 100vw, 64vw" />
+        <Image className="hm-parallax" src={main.imageUrl} alt={main.alt ?? ''} fill priority sizes="(max-width: 900px) 100vw, 64vw" />
         <span className="hm-tile-caption">
           <span><small>{main.label}</small><strong>{main.title}</strong></span>
           <span className="hm-tile-cta">Descubrir <ArrowUpRight size={16} /></span>
         </span>
       </Link>
       <div className="hm-mosaic-side">
-        {tiles.map(tile => <Link key={tile.categorySlug} className="hm-tile" href={shopCategory(tile.categorySlug)}>
-          <Image src={tile.image} alt={tile.alt} fill sizes="(max-width: 900px) 50vw, 34vw" />
+        {tiles.map((tile, index) => <Link key={index} className="hm-tile" href={shopCategory(tile.categorySlug)}>
+          <Image src={tile.imageUrl} alt={tile.alt ?? ''} fill sizes="(max-width: 900px) 50vw, 34vw" />
           <span className="hm-tile-caption"><span><small>{tile.label}</small><strong>{tile.title}</strong></span></span>
         </Link>)}
       </div>
@@ -146,12 +148,12 @@ function HeroA({ categories }: { categories: Category[] }) {
   </section>;
 }
 
-function HeroB({ categories }: { categories: Category[] }) {
+function HeroB({ content, categories }: { content: HeroBContent; categories: Category[] }) {
   const worlds = categories.slice(0, 4);
   return <section className="hm-hero">
     <div className="hm-hero-head hm-hero-head-spaced">
-      <h1>{COUNT_WORDS[worlds.length]} mundos. <i>Un mismo criterio.</i></h1>
-      <p className="hm-hero-aside">Elegimos cada pieza con la misma pregunta: ¿se va a quedar contigo?</p>
+      <h1>{content.title || `${COUNT_WORDS[worlds.length]} mundos.`}{content.italic && <> <i>{content.italic}</i></>}</h1>
+      {content.body && <p className="hm-hero-aside">{content.body}</p>}
     </div>
     <div className="hm-worlds-row" style={{ '--count': worlds.length } as CSSProperties}>
       {worlds.map((category, index) => <Link key={category.id} className="hm-tile" href={shopCategory(category.slug)}>
@@ -169,16 +171,16 @@ function HeroB({ categories }: { categories: Category[] }) {
 }
 
 function HeroC({ campaigns }: { campaigns: HeroCampaign[] }) {
-  const [id, setId] = useState(campaigns[0].id);
-  const campaign = campaigns.find(item => item.id === id) ?? campaigns[0];
+  const [id, setId] = useState('0');
+  const campaign = campaigns[Number(id)] ?? campaigns[0];
   const href = `/product/${campaign.product.slug}`;
   return <section className="hm-hero">
     <div className="hm-campaign">
       <div className="hm-campaign-copy">
         <div>
-          <p className="eyebrow">{campaign.eyebrow}</p>
-          <h1>{campaign.title} <i>{campaign.italic}</i></h1>
-          <p>{campaign.body}</p>
+          {campaign.eyebrow && <p className="eyebrow">{campaign.eyebrow}</p>}
+          <h1>{campaign.title}{campaign.italic && <> <i>{campaign.italic}</i></>}</h1>
+          {campaign.body && <p>{campaign.body}</p>}
         </div>
         <div className="hm-campaign-actions">
           <Link className="button" href={href}>Descubrir {campaign.product.name} <ArrowUpRight size={18} /></Link>
@@ -186,29 +188,31 @@ function HeroC({ campaigns }: { campaigns: HeroCampaign[] }) {
         </div>
       </div>
       <div className="hm-campaign-image">
-        <Image key={campaign.id} src={campaign.product.images[0]} alt={campaign.product.name} fill priority
+        <Image key={campaign.product.slug} src={campaign.product.images[0]} alt={campaign.product.name} fill priority
           sizes="(max-width: 900px) 100vw, 58vw" />
       </div>
     </div>
-    {campaigns.length > 1 && <Choices className="hm-choices-rule" label="Elegir campaña" value={campaign.id} onChange={setId}
-      options={campaigns.map((item, index) => ({ id: item.id, label: <>
+    {campaigns.length > 1 && <Choices className="hm-choices-rule" label="Elegir campaña" value={id} onChange={setId}
+      options={campaigns.map((item, index) => ({ id: String(index), label: <>
         <small>{pad(index + 1)} / {item.world}</small><span>{item.product.name}</span>
       </> }))} />}
   </section>;
 }
 
-function HeroD({ moments, initial }: { moments: HeroMoment[]; initial: Moment }) {
+function HeroD({ title, italic, moments, initial }: {
+  title: string; italic?: string | null; moments: HeroMoment[]; initial: Moment;
+}) {
   const [id, setId] = useState<Moment>(initial);
   const moment = moments.find(item => item.id === id) ?? moments[0];
   return <section className="hm-hero">
     <div className="hm-hero-head hm-hero-head-spaced">
-      <h1>Tu día, <i>mejor elegido.</i></h1>
+      <h1>{title}{italic && <> <i>{italic}</i></>}</h1>
       {moments.length > 1 && <Choices label="Elegir momento del día" value={moment.id} onChange={setId}
         options={moments.map(item => ({ id: item.id, label: item.label }))} />}
     </div>
     <div className="hm-moment">
       <div className="hm-tile hm-moment-image">
-        <Image key={moment.id} src={moment.image} alt={moment.alt} fill priority sizes="(max-width: 900px) 100vw, 58vw" />
+        <Image key={moment.id} src={moment.imageUrl} alt={moment.alt ?? ''} fill priority sizes="(max-width: 900px) 100vw, 58vw" />
         <span className="hm-tile-caption"><span><small>{moment.label}</small><strong>{moment.line}</strong></span></span>
       </div>
       <ul className="hm-moment-list">

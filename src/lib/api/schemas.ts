@@ -110,3 +110,19 @@ export const adminPaymentsSchema = z.array(z.object({id:z.string(),order_id:z.st
 export const adminPaymentSchema = z.object({payment:paymentSchema,
   attempts:z.array(z.object({id:z.string(),provider:z.string(),status:z.string(),amount:z.number(),currency:z.string(),created_at:z.string(),provider_payment_id:z.string().nullish(),provider_preference_id:z.string().nullish(),checkout_closed_at:z.string().nullish(),close_reason:z.enum(['SWITCH','ORDER']).nullish(),provider_closed_at:z.string().nullish(),failure_reason:z.string().nullish()})).default([]),
   events:z.array(z.object({provider:z.string().nullish(),event_type:z.string(),processing_status:z.string(),received_at:z.string(),payload:z.string()}))});
+
+// Home heroes (/home/heroes and /admin/home/heroes). Content is parsed per variant so one bad row
+// only drops that hero instead of the whole home page.
+const optionalText = z.string().nullish();
+const heroTileSchema = z.object({ label: z.string(), title: z.string(), imageUrl: z.string(), alt: optionalText, categorySlug: z.string() });
+export const heroContentSchemas = {
+  a: z.object({ meta: optionalText, title: z.string(), italic: optionalText, body: optionalText, ctaLabel: z.string(),
+    main: heroTileSchema, tiles: z.array(heroTileSchema).length(2) }),
+  b: z.object({ title: optionalText, italic: optionalText, body: optionalText }),
+  c: z.object({ campaigns: z.array(z.object({ world: z.string(), eyebrow: optionalText, title: z.string(), italic: optionalText,
+    body: optionalText, productSlug: z.string() })).min(1) }),
+  d: z.object({ title: z.string(), italic: optionalText, moments: z.array(z.object({ id: z.enum(['manana', 'tarde', 'noche']),
+    label: z.string(), line: z.string(), imageUrl: z.string(), alt: optionalText, productSlugs: z.array(z.string()).min(1) })).min(1) }),
+};
+export const heroViewSchema = z.object({ variant: z.enum(['a', 'b', 'c', 'd']), enabled: z.boolean(), content: z.unknown(), updatedAt: z.string().nullish() });
+export const heroViewsSchema = z.array(heroViewSchema);
