@@ -1,0 +1,12 @@
+# Escáner de secretos. Lo usan los hooks de .githooks/ y el workflow .github/workflows/secrets.yml.
+title = "Olvenio"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Valores falsos usados en pruebas (no son claves reales)"
+regexes = [
+  '''^sk_test_0123456789abcdef$''',
+  '''^whsec_0123456789abcdef$''',
+]
