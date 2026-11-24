@@ -1,5 +1,6 @@
 'use client';
 import { BUSINESS, LIVE } from '@/lib/business';
+import { THEME_STORAGE_KEY } from '@/lib/theme';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
@@ -417,6 +418,7 @@ const COOKIE_DETAILS = [
 ];
 
 const STORAGE = [
+  { name: THEME_STORAGE_KEY, purpose: 'Recuerda si elegiste el tema claro u oscuro.', duration: 'Hasta que la borres' },
   { name: 'olvenio-prefs-v1', purpose: 'Guarda la preferencia del mensaje que aparece en el pie de página.', duration: 'Hasta que la borres' },
   { name: 'olvenio-cookie-notice-v1', purpose: 'Recuerda que ya cerraste el aviso de cookies para no volver a mostrarlo.', duration: 'Hasta que la borres' },
 ];
@@ -492,7 +494,7 @@ export function CookiePolicy({ googleEnabled = false }: { googleEnabled?: boolea
 
       <Section id="almacenamiento" index={3} title={<>Almacenamiento <i>local.</i></>}>
         <p>
-          Además de cookies, guardamos dos preferencias en el almacenamiento local de tu navegador. No contienen datos personales y
+          Además de cookies, guardamos preferencias en el almacenamiento local de tu navegador. No contienen datos personales y
           nunca se envían a nuestros servidores.
         </p>
         <div className="legal-cookies" role="table" aria-label="Datos en almacenamiento local">
