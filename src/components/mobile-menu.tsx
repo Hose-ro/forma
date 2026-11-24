@@ -4,6 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { ArrowUpRight, UserRound, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { BrandLogo } from './brand-logo';
 import { ThemeToggle } from './theme-toggle';
 import styles from './mobile-menu.module.css';
 
@@ -37,7 +38,7 @@ export function MobileMenu({ open, onOpenChange }: {
         <Dialog.Content className={styles.panel} aria-describedby={undefined}>
           <div className={styles.heading}>
             <Dialog.Title className="sr-only">Menú de Olvenio</Dialog.Title>
-            <span className="logo" aria-hidden="true">OLVENIO<span className={styles.dot}>.</span></span>
+            <BrandLogo variant="adaptive" size="sm" alt="" />
             <Dialog.Close type="button" className={`icon-button ${styles.close}`} aria-label="Cerrar menú">
               <span><X size={20} aria-hidden="true" /></span>
             </Dialog.Close>

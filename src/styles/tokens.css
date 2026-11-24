@@ -1,5 +1,8 @@
 :root {
   color-scheme: light dark;
+  --brand-primary: #327A70;
+  --brand-charcoal: #1D2528;
+  --brand-off-white: #F8F7F4;
   --color-canvas: light-dark(#F7F6F2, #1C1E19);
   --color-paper: light-dark(#FFFFFF, #242720);
   --color-ink: light-dark(#1B1B19, #F1EDE2);

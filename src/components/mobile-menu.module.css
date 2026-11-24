@@ -48,20 +48,6 @@
   padding-bottom: clamp(18px, 4dvh, 36px);
 }
 
-.heading :global(.logo) {
-  font-size: 22.5px;
-}
-
-@media (max-width: 639px) {
-  .heading :global(.logo) {
-    font-size: 20.25px;
-  }
-}
-
-.dot {
-  color: var(--color-accent);
-}
-
 .close {
   border: 1px solid var(--color-control-border);
   border-radius: 50%;
