@@ -13,6 +13,7 @@ import {
 import type { Category, Product } from '@/types';
 import { Reveal } from './ui';
 import { ProductCard } from './product-card';
+import { SocialLinks } from './social-links';
 
 export type HeroCampaign = HeroCampaignContent & { product: Product };
 export type HeroMoment = HeroMomentContent & { products: Product[] };
@@ -128,6 +129,7 @@ function HeroA({ content, categories }: { content: HeroAContent; categories: Cat
       <div className="hm-hero-note">
         {content.body && <p>{content.body}</p>}
         <Link className="button" href="/shop">{content.ctaLabel} <ArrowUpRight size={18} /></Link>
+        <SocialLinks />
       </div>
     </div>
     <div className="hm-mosaic">
@@ -153,7 +155,10 @@ function HeroB({ content, categories }: { content: HeroBContent; categories: Cat
   return <section className="hm-hero">
     <div className="hm-hero-head hm-hero-head-spaced">
       <h1>{content.title || `${COUNT_WORDS[worlds.length]} mundos.`}{content.italic && <> <i>{content.italic}</i></>}</h1>
-      {content.body && <p className="hm-hero-aside">{content.body}</p>}
+      <div className="hm-hero-aside">
+        {content.body && <p>{content.body}</p>}
+        <SocialLinks />
+      </div>
     </div>
     <div className="hm-worlds-row" style={{ '--count': worlds.length } as CSSProperties}>
       {worlds.map((category, index) => <Link key={category.id} className="hm-tile" href={shopCategory(category.slug)}>
@@ -182,9 +187,12 @@ function HeroC({ campaigns }: { campaigns: HeroCampaign[] }) {
           <h1>{campaign.title}{campaign.italic && <> <i>{campaign.italic}</i></>}</h1>
           {campaign.body && <p>{campaign.body}</p>}
         </div>
-        <div className="hm-campaign-actions">
-          <Link className="button" href={href}>Descubrir {campaign.product.name} <ArrowUpRight size={18} /></Link>
-          <span>{money(campaign.product.price)} <small>MXN</small></span>
+        <div className="hm-hero-side">
+          <div className="hm-campaign-actions">
+            <Link className="button" href={href}>Descubrir {campaign.product.name} <ArrowUpRight size={18} /></Link>
+            <span>{money(campaign.product.price)} <small>MXN</small></span>
+          </div>
+          <SocialLinks />
         </div>
       </div>
       <div className="hm-campaign-image">
@@ -207,8 +215,11 @@ function HeroD({ title, italic, moments, initial }: {
   return <section className="hm-hero">
     <div className="hm-hero-head hm-hero-head-spaced">
       <h1>{title}{italic && <> <i>{italic}</i></>}</h1>
-      {moments.length > 1 && <Choices label="Elegir momento del día" value={moment.id} onChange={setId}
-        options={moments.map(item => ({ id: item.id, label: item.label }))} />}
+      <div className="hm-hero-side">
+        {moments.length > 1 && <Choices label="Elegir momento del día" value={moment.id} onChange={setId}
+          options={moments.map(item => ({ id: item.id, label: item.label }))} />}
+        <SocialLinks />
+      </div>
     </div>
     <div className="hm-moment">
       <div className="hm-tile hm-moment-image">

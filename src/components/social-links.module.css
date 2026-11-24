@@ -1,0 +1,33 @@
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.links .link {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid var(--color-control-border);
+  border-radius: 50%;
+  color: var(--color-ink);
+}
+
+.links .link[data-network="instagram"] {
+  color: light-dark(#b32068, #ff82ba);
+}
+
+.links .link[data-network="facebook"] {
+  color: light-dark(#0056df, #80aaff);
+}
+
+.link svg {
+  opacity: 0.7;
+}
+
+.link:hover,
+.link:focus-visible {
+  background: var(--color-stone);
+  border-color: var(--color-accent);
+}

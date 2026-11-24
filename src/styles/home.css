@@ -10,6 +10,8 @@
 .hm-hero-head-spaced { padding-top: 44px; }
 .hm-hero-note { display: flex; flex-direction: column; gap: 18px; max-width: 290px; font-size: 12px; }
 .hm-hero-aside { max-width: 260px; margin-bottom: 8px; font-size: 12px; }
+.hm-hero-aside:empty, .hm-hero-side:empty { display: none; }
+.hm-hero-aside > nav:not(:first-child), .hm-hero-side > nav:not(:first-child) { margin-top: 12px; }
 
 /* Image tiles shared by every hero and the world shelf. */
 .hm-tile { position: relative; display: block; min-height: 0; overflow: hidden; background: var(--color-stone); color: #fff; }
@@ -99,6 +101,7 @@
   .hm-hero-head { display: block; }
   .hm-hero-note, .hm-hero-aside { max-width: none; margin-top: 20px; }
   .hm-hero-head .hm-choices { margin-top: 20px; }
+  .hm-hero-head .hm-hero-side > nav:first-child { margin-top: 20px; }
   .hm-mosaic { grid-template-columns: 1fr; height: auto; }
   .hm-tile-main { height: 340px; }
   .hm-mosaic-side { grid-template-rows: none; grid-template-columns: repeat(2, minmax(0, 1fr)); height: 210px; }
