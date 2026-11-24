@@ -35,6 +35,14 @@ app:
     conekta:
       environment: test
     reconciliation-delay: ${PAYMENTS_RECONCILIATION_DELAY:600000}
+spring.mail.properties.mail.smtp:
+  auth: true
+  starttls.enable: true
+  starttls.required: true
+  ssl.checkserveridentity: true
+  connectiontimeout: 10000
+  timeout: 10000
+  writetimeout: 10000
 springdoc:
   api-docs:
     enabled: false

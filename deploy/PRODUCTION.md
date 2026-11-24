@@ -52,7 +52,7 @@ El servidor calcula el cargo; el checkout y la política de envíos muestran exa
 ## 4. Infraestructura de producción
 
 1. **Base de datos**: crea un proyecto Neon nuevo (no una rama del de staging). Crea el rol `olvenio_runtime` con una contraseña privada para `DATABASE_USERNAME`. Ejecuta `deploy/neon/01_bootstrap.sql`,
-   arranca la API una vez (Flyway aplica V1–V14) y luego `deploy/neon/02_runtime_grants.sql`. Usa contraseñas nuevas.
+   arranca la API una vez (Flyway aplica V1–V23) y luego ejecuta `deploy/neon/02_runtime_grants.sql` como propietario de las migraciones. Usa contraseñas nuevas.
 2. **Respaldos**: activa la restauración a un punto en el tiempo de Neon (plan de pago, ≥ 7 días) y programa un `pg_dump` semanal a otro almacenamiento.
 3. **API**: en Render crea un Blueprint nuevo con ruta `deploy/render.production.yaml` y completa las variables marcadas.
    Usa un plan siempre encendido: una instancia dormida retrasa los webhooks de pago.
@@ -61,6 +61,15 @@ El servidor calcula el cargo; el checkout y la política de envíos muestran exa
    después **borra `APP_ADMIN_PASSWORD`** del host. La cuenta ya queda creada.
 6. **Monitoreo**: monitor de disponibilidad (UptimeRobot, Better Stack…) sobre `https://api.olvenio.com/api/v1/categories`
    y `https://olvenio.com`, con alertas a tu correo; activa las notificaciones de despliegue fallido en Render y Vercel.
+
+Para actualizar una base existente, toma un respaldo verificable antes de desplegar y ensaya la actualización en una copia.
+En una ventana de mantenimiento, despliega la API para que Flyway aplique V23 con el rol de migraciones.
+Para instalaciones con `olvenio_runtime`, ejecuta el `02_runtime_grants.sql` actualizado con ese mismo propietario.
+Si el entorno usa otro rol de ejecución, V23 aplica la revocación al configurado en `DATABASE_USERNAME`.
+Antes de reabrir el tráfico, confirma que el rol de ejecución conserva `SELECT`, `INSERT` y `UPDATE` sobre `users` y `orders`,
+y tiene permisos efectivos de solo lectura e inserción en las tablas de historial. Si los scripts detectan permisos
+heredados que permiten borrar o alterar datos protegidos, revisa las membresías del rol y los permisos de `PUBLIC`
+antes de reintentar.
 
 ## 5. Mercado Pago real
 
@@ -85,6 +94,9 @@ El backend rechaza la mezcla de entornos: en `production` solo acepta pagos real
    registros SPF/DKIM que te den y configura `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT=587`, `SPRING_MAIL_USERNAME`,
    `SPRING_MAIL_PASSWORD`, `APP_MAIL_FROM` (`Olvenio <pedidos@olvenio.com>`), `APP_ORDERS_NOTIFY_EMAIL` (tu buzón: recibe copia
    de cada pedido pagado y las respuestas de clientes) y `APP_STORE_NAME=Olvenio`. Sin `SPRING_MAIL_HOST` no se envía ningún correo.
+   Producción y staging exigen STARTTLS en el puerto SMTP configurado y verifican el nombre del servidor en el certificado.
+   Si el servidor no ofrece STARTTLS o falla la verificación del certificado, el intento se interrumpe antes de autenticar.
+   La conexión, lectura y escritura tienen un límite de 10 s cada una. Revisa la cola y los correos fallidos si hay una interrupción.
 4. Comprobación final: candado HTTPS en tienda y API, `https://olvenio.com/sitemap.xml` y `/robots.txt` con tu dominio,
    enlaces del pie de página, registro e inicio de sesión, y los correos de confirmación y de envío en una compra de prueba.
 

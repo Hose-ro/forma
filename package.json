@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
+    "hooks:install": "sh .githooks/install.sh",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:security": "node --experimental-strip-types --test tests/security.test.mjs",
+    "test:security": "node --experimental-strip-types --test tests/security.test.mjs tests/hooks.test.mjs",
     "test:home": "node --experimental-strip-types --test tests/home-heroes.test.mjs",
     "scan:secrets": "gitleaks git --redact --no-banner --config .gitleaks.toml ."
   },

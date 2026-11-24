@@ -1,5 +1,5 @@
-# Funciones compartidas por los hooks. Se activan con: git config core.hooksPath .githooks
-ROOT="$(git rev-parse --show-toplevel)"
+# Funciones compartidas por los hooks. Instálalos con npm run hooks:install.
+ROOT="$(git rev-parse --show-toplevel)" || exit 1
 
 require_gitleaks() {
   if ! command -v gitleaks >/dev/null 2>&1; then
