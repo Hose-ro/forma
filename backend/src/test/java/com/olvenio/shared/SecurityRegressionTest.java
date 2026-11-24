@@ -13,6 +13,7 @@ import com.olvenio.checkout.api.CheckoutController;
 import com.olvenio.checkout.application.CheckoutService;
 import com.olvenio.identity.api.AuthController;
 import com.olvenio.identity.application.AccountService;
+import com.olvenio.identity.application.EmailRegistrationService;
 import com.olvenio.identity.application.GoogleIdentityVerifier;
 import com.olvenio.identity.application.GoogleIdentityVerifier.GoogleIdentity;
 import com.olvenio.identity.application.IdentityDtos.UserView;
@@ -41,6 +42,7 @@ class SecurityRegressionTest {
     @Autowired MockMvc mvc;
     @Autowired PasswordEncoder encoder;
     @MockitoBean AccountService accounts;
+    @MockitoBean EmailRegistrationService registration;
     @MockitoBean GoogleIdentityVerifier google;
     @MockitoBean com.olvenio.identity.application.AccountRecoveryService recovery;
     @MockitoBean UserDetailsService users;

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const registrationChallengeSchema = z.object({ challengeId: z.string().uuid() });
+
 // Runtime contracts for the Spring Boot API (null fields are omitted by the backend).
 const page = <T extends z.ZodType>(item: T) =>
   z.object({ items: z.array(item), page: z.number(), size: z.number(), totalElements: z.number(), totalPages: z.number() });

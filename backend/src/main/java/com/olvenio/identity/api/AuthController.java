@@ -1,6 +1,7 @@
 package com.olvenio.identity.api;
 
 import com.olvenio.identity.application.AccountService;
+import com.olvenio.identity.application.EmailRegistrationService;
 import com.olvenio.identity.application.GoogleIdentityVerifier;
 import com.olvenio.identity.application.GoogleIdentityVerifier.GoogleIdentity;
 import com.olvenio.identity.application.IdentityDtos.GoogleCredential;
@@ -56,12 +57,13 @@ public class AuthController {
     private final RequestLimits limits;
     private final com.olvenio.identity.application.AccountRecoveryService recovery;
     private final GoogleIdentityVerifier google;
+    private final EmailRegistrationService registration;
 
     public AuthController(AccountService accounts, AuthenticationManager authenticationManager,
                           SecurityContextRepository contextRepository, CsrfTokenRepository csrfTokenRepository,
                           RequestLimits limits,
                           com.olvenio.identity.application.AccountRecoveryService recovery,
-                          GoogleIdentityVerifier google) {
+                          GoogleIdentityVerifier google, EmailRegistrationService registration) {
         this.recovery = recovery;
         this.google = google;
         this.accounts = accounts;
@@ -69,6 +71,7 @@ public class AuthController {
         this.contextRepository = contextRepository;
         this.csrfTokenRepository = csrfTokenRepository;
         this.limits = limits;
+        this.registration = registration;
     }
 
     @Operation(summary = "Issue CSRF token (also set as XSRF-TOKEN cookie). Send it as X-XSRF-TOKEN on unsafe requests.")
@@ -77,15 +80,47 @@ public class AuthController {
         return Map.of("headerName", token.getHeaderName(), "token", token.getToken());
     }
 
-    @Operation(summary = "Register a CUSTOMER account and start a session")
+    public record RegistrationChallenge(UUID challengeId) {}
+
+    public record RegistrationCodeRequest(@jakarta.validation.constraints.NotNull UUID challengeId,
+                                          @jakarta.validation.constraints.NotBlank
+                                          @jakarta.validation.constraints.Pattern(regexp = "[0-9]{6}") String code) {}
+
+    public record RegistrationResendRequest(@jakarta.validation.constraints.NotNull UUID challengeId) {}
+
+    @Operation(summary = "Start customer registration and queue an email confirmation code")
     @PostMapping("/register")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public RegistrationChallenge register(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody RegisterRequest req) {
+        requireAnonymous(user);
+        requireRegistrationMail();
+        return new RegistrationChallenge(registration.begin(req));
+    }
+
+    @Operation(summary = "Confirm the code, create the customer account, and start a session")
+    @PostMapping("/register/verify")
     @ResponseStatus(HttpStatus.CREATED)
-    public UserView register(@Valid @RequestBody RegisterRequest req, HttpServletRequest request,
-                             HttpServletResponse response) {
-        UserView user = accounts.register(req);
-        startSession(req.email(), req.password(), request, response);
-        if (recovery.verificationAvailable()) recovery.requestVerification(user.id());
-        return user;
+    public UserView verifyRegistration(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody RegistrationCodeRequest req,
+                                       HttpServletRequest request, HttpServletResponse response) {
+        requireAnonymous(user);
+        UserView created = registration.verify(req.challengeId(), req.code());
+        startCustomerSession(created, request, response);
+        return created;
+    }
+
+    @Operation(summary = "Resend the active registration code")
+    @PostMapping("/register/resend")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void resendRegistration(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody RegistrationResendRequest req) {
+        requireAnonymous(user);
+        requireRegistrationMail();
+        registration.resend(req.challengeId());
+    }
+
+    private void requireRegistrationMail() {
+        if (!recovery.verificationAvailable()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Registration email is unavailable");
+        }
     }
 
     public record ForgotRequest(@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Email
@@ -168,7 +203,7 @@ public class AuthController {
         GoogleIdentity identity = verifyGoogle(req.credential(), session, null);
         UserView linked = accounts.googleLogin(identity);
         if (linked != null) {
-            startGoogleSession(linked, request, response);
+            startCustomerSession(linked, request, response);
             return new GoogleLoginResult(linked, null);
         }
         session.removeAttribute(GOOGLE_CHALLENGE);
@@ -189,7 +224,7 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.GONE, "Google signup expired");
         }
         UserView registered = accounts.googleRegister(signup.identity(), req);
-        startGoogleSession(registered, request, response);
+        startCustomerSession(registered, request, response);
         return registered;
     }
 
@@ -216,7 +251,7 @@ public class AuthController {
         if (user != null) throw new AccessDeniedException("Sign out before switching accounts");
     }
 
-    private void startGoogleSession(UserView user, HttpServletRequest request, HttpServletResponse response) {
+    private void startCustomerSession(UserView user, HttpServletRequest request, HttpServletResponse response) {
         var principal = new AuthUser(user.id(), user.email(), null, user.role(), true);
         saveSession(UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()),
                 request, response);

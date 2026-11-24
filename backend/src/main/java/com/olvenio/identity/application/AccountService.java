@@ -4,7 +4,6 @@ import com.olvenio.catalog.infrastructure.CategoryRepository;
 import com.olvenio.identity.application.GoogleIdentityVerifier.GoogleIdentity;
 import com.olvenio.identity.application.IdentityDtos.AddressRequest;
 import com.olvenio.identity.application.IdentityDtos.AddressView;
-import com.olvenio.identity.application.IdentityDtos.RegisterRequest;
 import com.olvenio.identity.application.IdentityDtos.UpdateProfileRequest;
 import com.olvenio.identity.application.IdentityDtos.UserView;
 import com.olvenio.identity.domain.Address;
@@ -46,15 +45,21 @@ public class AccountService {
         this.postalDirectory = postalDirectory;
     }
 
-    /** Public registration always creates CUSTOMER accounts. */
-    @Transactional
-    public UserView register(RegisterRequest req) {
-        if (users.existsByEmailIgnoreCase(req.email())) {
+    @Transactional(readOnly = true)
+    public void requireAvailableEmail(String email) {
+        if (users.existsByEmailIgnoreCase(email)) {
             throw new ConflictException("Email already registered");
         }
-        User user = new User(req.email(), encoder.encode(req.password()), req.firstName(),
-                req.lastName(), blankToNull(req.phone()), Role.CUSTOMER);
-        user.acceptTerms(TERMS_VERSION, Instant.now());
+    }
+
+    /** Called after proving ownership of the email in the registration transaction. */
+    @Transactional
+    public UserView registerVerified(String email, String passwordHash, String firstName, String lastName,
+                                     String phone, Instant termsAcceptedAt) {
+        requireAvailableEmail(email);
+        User user = new User(email, passwordHash, firstName, lastName, blankToNull(phone), Role.CUSTOMER);
+        user.acceptTerms(TERMS_VERSION, termsAcceptedAt);
+        user.markEmailVerified(Instant.now());
         return toView(users.save(user));
     }
 

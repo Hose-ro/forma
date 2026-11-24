@@ -124,6 +124,7 @@ public class AccountRecoveryService {
 
     @Scheduled(fixedDelayString = "${app.mail.poll-delay:60000}", initialDelayString = "${app.mail.initial-delay:30000}")
     public void deliverEmails() {
+        db.update("delete from pending_registrations p using account_emails m where p.id=m.id and m.expires_at<=now()");
         db.update("delete from account_emails where expires_at<now()-interval '7 days'");
         db.update("delete from account_tokens where expires_at<now()-interval '7 days'");
         db.update("update account_emails set status='FAILED',last_error='EXPIRED',claimed_until=null,claim_id=null "
@@ -157,6 +158,13 @@ public class AccountRecoveryService {
                         + "and status='PROCESSING' and claim_id=? and expires_at>now())", Boolean.class, id, claim);
                 if (!Boolean.TRUE.equals(owned)) return null;
                 String purpose = (String) job.get("purpose");
+                if ("REGISTRATION_CODE".equals(purpose)) {
+                    String email = (String) job.get("email");
+                    Boolean pending = db.queryForObject("select exists(select 1 from pending_registrations where id=? and failed_attempts<5)",
+                            Boolean.class, id);
+                    return Boolean.TRUE.equals(pending) && !users.existsByEmailIgnoreCase(email)
+                            ? new Message(email, "", purpose, tokens.registrationCode(id)) : null;
+                }
                 var user = users.findByEmailIgnoreCase((String) job.get("email"))
                         .filter(u -> u.isEnabled() && (!"EMAIL_VERIFICATION".equals(purpose) || !u.isEmailVerified()));
                 if (user.isEmpty()) return null;
@@ -188,6 +196,17 @@ public class AccountRecoveryService {
     }
 
     private void send(Message message) {
+        if ("REGISTRATION_CODE".equals(message.purpose())) {
+            SimpleMailMessage m = new SimpleMailMessage();
+            m.setFrom(from);
+            m.setTo(message.email());
+            m.setSubject("Tu código de confirmación · " + store);
+            m.setText("Ingresa este código en el formulario donde empezaste tu registro en " + store
+                    + ":\n\n" + message.token() + "\n\nEl código es de un solo uso y vence 15 minutos después de iniciar el registro."
+                    + "\n\nSi no solicitaste el registro, ignora este correo.\n");
+            mail.send(m);
+            return;
+        }
         boolean reset = "PASSWORD_RESET".equals(message.purpose());
         String path = reset ? "/account/reset" : "/account/verify";
         String subject = reset ? "Restablece tu contraseña" : "Confirma tu correo";

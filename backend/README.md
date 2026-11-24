@@ -20,6 +20,7 @@ mvn spring-boot:run                  # perfil dev: migraciones + datos de demo +
 
 - El frontend proxya `/api/v1/*` hacia este backend (`BACKEND_URL` en la raíz), así que el navegador solo habla con su propio origen.
 - Sesión en cookie `OLVENIO_SESSION` (HttpOnly, SameSite=Lax, Secure con `APP_COOKIE_SECURE=true`). `GET /auth/session` devuelve 204 sin sesión.
+- Registro por correo. `POST /auth/register` devuelve un `challengeId` y pone en cola un código de seis dígitos. `POST /auth/register/resend` recibe el `challengeId`. `POST /auth/register/verify` recibe `challengeId` y `code`, crea la cuenta confirmada y abre la sesión. El código vence a los 15 minutos y tiene un límite de cinco intentos. El backend requiere SMTP, `APP_MAIL_FROM` y `APP_PUBLIC_FRONTEND_URL` para iniciar el registro por correo.
 - CSRF: `GET /api/v1/auth/csrf` → enviar `X-XSRF-TOKEN` en POST/PATCH/DELETE. El token rota tras login/logout.
 - Invitados: cookie HttpOnly `OLVENIO_GUEST` (se emite al crear carrito o cotización). Identifica el carrito y los pedidos de invitado; en la base solo se guarda su HMAC. Clientes no navegador pueden enviar el mismo valor en `X-Cart-Token` / `X-Order-Token`.
 - Checkout: `POST /checkout/quotes` → `POST /orders` con `Idempotency-Key`.

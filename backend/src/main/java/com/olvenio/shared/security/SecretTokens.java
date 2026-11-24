@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Locale;
 import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -58,6 +59,13 @@ public class SecretTokens {
         } catch (GeneralSecurityException e) {
             throw new IllegalStateException("HMAC unavailable", e);
         }
+    }
+
+    /** Derive a short registration code for a single challenge, including on SMTP retries. */
+    public String registrationCode(UUID challengeId) {
+        String digest = hash("olvenio:registration-code:v1:" + challengeId);
+        long value = Long.parseLong(digest.substring(0, 15), 16);
+        return String.format(Locale.ROOT, "%06d", value % 1_000_000);
     }
 
     /** Constant-time comparison of a presented token against a stored hash. */

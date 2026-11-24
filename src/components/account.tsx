@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowUpRight, CheckCircle2, Heart, Mail, Package } from 'lucide-react';
 import { api } from '@/lib/api/client';
 import { ApiError, errorMessage } from '@/lib/api/http';
-import { categoriesSchema, orderPageSchema, userSchema } from '@/lib/api/schemas';
+import { categoriesSchema, orderPageSchema, registrationChallengeSchema, userSchema } from '@/lib/api/schemas';
 import { LIVE } from '@/lib/business';
 import { ORDER_STATUS, formatDate, money } from '@/lib/data';
 import { safeRedirect } from '@/lib/safe-redirect';
@@ -53,7 +53,7 @@ export function Account({ googleEnabled }: { googleEnabled: boolean }) {
 }
 
 function AccountForm({ googleEnabled }: { googleEnabled: boolean }) {
-  const { login, register } = useShop();
+  const { login, syncAfterAuth } = useShop();
   const router = useRouter();
   const next = useSearchParams().get('next');
   const [mode, setMode] = useState<Mode>('login');
@@ -61,6 +61,7 @@ function AccountForm({ googleEnabled }: { googleEnabled: boolean }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [registration, setRegistration] = useState<{ challengeId: string; email: string } | null>(null);
   const creating = mode === 'register';
 
   function finishSignIn() {
@@ -71,6 +72,7 @@ function AccountForm({ googleEnabled }: { googleEnabled: boolean }) {
 
   function changeMode(value: Mode) {
     setMode(value);
+    setRegistration(null);
     setError('');
     setNotice('');
   }
@@ -105,11 +107,15 @@ function AccountForm({ googleEnabled }: { googleEnabled: boolean }) {
         setNotice('Si existe una cuenta con ese correo, recibirás un enlace para restablecer la contraseña. Vence en 30 minutos.');
         return;
       }
-      if (mode === 'login') await login(email, password);
-      else await register({
-        firstName: String(fields.get('name')).trim(), lastName: String(fields.get('lastName')).trim(),
-        email, password, passwordConfirmation, termsAccepted,
-      });
+      if (creating) {
+        const { challengeId } = await api.post('/auth/register', registrationChallengeSchema, {
+          firstName: String(fields.get('name')).trim(), lastName: String(fields.get('lastName')).trim(),
+          email, password, passwordConfirmation, termsAccepted,
+        });
+        setRegistration({ challengeId, email });
+        return;
+      }
+      await login(email, password);
       finishSignIn();
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) setError('Correo o contraseña incorrectos.');
@@ -119,6 +125,70 @@ function AccountForm({ googleEnabled }: { googleEnabled: boolean }) {
       setBusy(false);
     }
   }
+
+  async function confirmRegistration(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!registration || busy) return;
+    const code = String(new FormData(event.currentTarget).get('code') ?? '');
+    setError('');
+    setNotice('');
+    setBusy(true);
+    try {
+      const user = await api.post('/auth/register/verify', userSchema, { challengeId: registration.challengeId, code });
+      await syncAfterAuth(user);
+      finishSignIn();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        changeMode('login');
+        setError('Ya existe una cuenta con ese correo. Inicia sesión.');
+      } else if (err instanceof ApiError && err.status === 422) {
+        setError(err.detail === 'Incorrect registration code'
+          ? 'El código es incorrecto. Revisa tu correo e inténtalo de nuevo.'
+          : 'El código venció o alcanzaste el límite de intentos. Vuelve a iniciar el registro.');
+      } else {
+        setError(errorMessage(err, 'No pudimos confirmar tu correo. Inténtalo de nuevo.'));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendRegistration() {
+    if (!registration || busy) return;
+    setError('');
+    setNotice('');
+    setBusy(true);
+    try {
+      await api.post('/auth/register/resend', null, { challengeId: registration.challengeId });
+      setNotice('Solicitamos otro envío. Revisa tu bandeja de entrada y el correo no deseado.');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 422) {
+        setError('El código venció o alcanzaste el límite de intentos. Vuelve a iniciar el registro.');
+      } else if (err instanceof ApiError && err.status === 429) {
+        setError('Espera antes de solicitar otro envío. Revisa tu bandeja de entrada y el correo no deseado.');
+      } else {
+        setError(errorMessage(err, 'No pudimos reenviar el código. Inténtalo de nuevo.'));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (registration) return <section aria-labelledby="confirm-email">
+    <form className="account-form" onSubmit={confirmRegistration}>
+      <h2 id="confirm-email">Confirma tu correo</h2>
+      <p className="muted">Recibirás un código en <strong>{registration.email}</strong>. Vence 15 minutos después de iniciar el registro.</p>
+      <label>Código de confirmación
+        <input name="code" type="text" required minLength={6} maxLength={6}
+          pattern="[0-9]{6}" inputMode="numeric" autoComplete="one-time-code" />
+      </label>
+      {notice && <p className="success-message" role="status">{notice}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
+      <button className="button" disabled={busy}>Confirmar y crear cuenta <ArrowUpRight size={17} aria-hidden="true" /></button>
+      <button type="button" className="text-link" disabled={busy} onClick={resendRegistration}>Reenviar código</button>
+      <button type="button" className="text-link" disabled={busy} onClick={() => changeMode('register')}>Volver al registro</button>
+    </form>
+  </section>;
 
   return <section aria-label={creating ? 'Crear cuenta' : 'Acceso a tu cuenta'}>
     <div className="category-tabs">

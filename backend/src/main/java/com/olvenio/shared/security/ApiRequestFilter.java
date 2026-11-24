@@ -81,6 +81,10 @@ public final class ApiRequestFilter extends OncePerRequestFilter {
             if (path.equals("/api/v1/auth/login")) { bucket = "login"; maximum = 15; }
             else if (path.equals("/api/v1/auth/register")) {
                 bucket = "register"; maximum = 5; window = Duration.ofMinutes(15);
+            } else if (path.equals("/api/v1/auth/register/verify")) {
+                bucket = "register-verify"; maximum = 15; window = Duration.ofMinutes(15);
+            } else if (path.equals("/api/v1/auth/register/resend")) {
+                bucket = "register-resend"; maximum = 5; window = Duration.ofMinutes(15);
             } else if (path.equals("/api/v1/auth/google/link")) {
                 bucket = "google-link"; maximum = 10; window = Duration.ofMinutes(15);
             } else if (path.startsWith("/api/v1/auth/google/")) {

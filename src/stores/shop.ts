@@ -9,7 +9,6 @@ import type { Cart, Product, User } from '@/types';
 
 // Client state backed by the REST API. The cart and the session live on the server (HttpOnly cookies);
 // only the footer message preference is kept in localStorage.
-type Registration = { firstName: string; lastName: string; email: string; password: string; passwordConfirmation: string; termsAccepted: boolean };
 type ShopState = {
   cart: Cart | null; cartReady: boolean; cartBusy: boolean; cartError: string;
   user: User | null; sessionReady: boolean;
@@ -26,7 +25,6 @@ type ShopState = {
   quantity: (itemId: string, quantity: number) => Promise<void>;
   remove: (itemId: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: Registration) => Promise<void>;
   syncAfterAuth: (user: User) => Promise<void>;
   logout: () => Promise<void>;
   setAnnouncement: (text: string) => void;
@@ -151,9 +149,6 @@ export const useShop = create<ShopState>()(persist((set, get) => {
     },
     async login(email, password) {
       await syncAfterAuth(await api.post('/auth/login', userSchema, { email, password }));
-    },
-    async register(data) {
-      await syncAfterAuth(await api.post('/auth/register', userSchema, data));
     },
     syncAfterAuth,
     async logout() {
