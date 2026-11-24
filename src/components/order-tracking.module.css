@@ -1,0 +1,98 @@
+/* From Uiverse.io by PriyanshuGupta28 - https://uiverse.io/PriyanshuGupta28/orange-newt-23
+ * MIT License, Copyright (c) PriyanshuGupta28 (Priyanshu Gupta)
+ */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(24px, 4vw, 36px);
+  margin-top: 24px;
+}
+
+.card {
+  --step-ink: light-dark(#0f172a, #e2e8f0);
+  padding: clamp(20px, 4vw, 28px);
+  border-radius: 12px;
+  background: var(--color-paper);
+  box-shadow: 0 4px 12px light-dark(#1b1b1910, #0004);
+}
+
+.heading { font-size: 26px; }
+
+.steps { list-style: none; margin: 22px 0 0; padding: 0; }
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 14px;
+  color: var(--step-ink);
+}
+
+.step:not(:last-child) { padding-bottom: 24px; }
+
+.step:not(:last-child)::before {
+  position: absolute;
+  inset: 40px auto 0 19px;
+  width: 2px;
+  background: var(--color-border);
+  content: '';
+}
+
+.marker {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  font-weight: 600;
+}
+
+.step[data-state='complete'] .marker {
+  border-color: var(--step-ink);
+  background: var(--step-ink);
+  color: var(--color-paper);
+}
+
+.step[data-state='pending'] { color: var(--color-muted); }
+.step[data-state='pending'] .marker { border-color: var(--color-border); }
+.stepTitle { font-weight: 600; }
+
+.status {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 2px 9px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.step[data-state='complete'] .status {
+  background: light-dark(#dcfce7, #233b2d);
+  color: light-dark(#166534, #b3e8c3);
+}
+
+.step[data-state='current'] .status {
+  background: light-dark(#dbeafe, #243755);
+  color: light-dark(#1d4ed8, #c1d6ff);
+}
+
+.step[data-state='pending'] .status {
+  background: light-dark(#f1f5f9, #363b32);
+  color: light-dark(#475569, #d1d3c8);
+}
+
+.date, .shippingDetails {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.shippingDetails span { display: block; overflow-wrap: anywhere; }
+.summary { padding-top: 8px; }
+
+@media (max-width: 639px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+}
