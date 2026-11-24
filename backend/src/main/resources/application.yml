@@ -20,6 +20,9 @@ spring:
     placeholders:
       runtimeRole: ${DATABASE_USERNAME:olvenio}
   mvc:
+    formcontent:
+      filter:
+        enabled: false
     problemdetails:
       enabled: true
   jackson:

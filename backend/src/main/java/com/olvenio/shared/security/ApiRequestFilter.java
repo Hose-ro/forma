@@ -12,6 +12,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Objects;
+import java.util.UUID;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -26,10 +28,6 @@ public final class ApiRequestFilter extends OncePerRequestFilter {
     private final byte[] proxySecret;
     private final SessionRevocations revocations;
 
-    public ApiRequestFilter(RequestLimits limits, ObjectMapper mapper) {
-        this(limits, mapper, null, null);
-    }
-
     /** @param proxySecret shared with the storefront proxy; blank disables trust in its client-address header */
     public ApiRequestFilter(RequestLimits limits, ObjectMapper mapper, String proxySecret,
                             SessionRevocations revocations) {
@@ -37,7 +35,7 @@ public final class ApiRequestFilter extends OncePerRequestFilter {
         this.mapper = mapper;
         this.proxySecret = proxySecret == null || proxySecret.isBlank() ? null
                 : proxySecret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        this.revocations = revocations;
+        this.revocations = Objects.requireNonNull(revocations);
     }
 
     public static final String PROXY_SECRET_HEADER = "X-Olvenio-Proxy-Secret";
@@ -60,16 +58,27 @@ public final class ApiRequestFilter extends OncePerRequestFilter {
         return new String[]{"ip:" + request.getRemoteAddr(), "1"};
     }
 
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getRequestURI().substring(request.getContextPath().length()).startsWith("/api/");
+    public static String servletPath(HttpServletRequest request) {
+        String pathInfo = request.getPathInfo();
+        return pathInfo == null ? request.getServletPath() : request.getServletPath() + pathInfo;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        response.setHeader("Cache-Control", "no-store");
-        String path = request.getRequestURI().substring(request.getContextPath().length());
+        String path = servletPath(request);
+        boolean api = path.startsWith("/api/");
+        if (api) response.setHeader("Cache-Control", "no-store");
+        var user = CurrentUser.id();
+        if (user.isPresent() && sessionExpired(request, user.get())) {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+            reject(response, HttpStatus.UNAUTHORIZED, "Session expired; sign in again");
+            return;
+        }
+        if (!api) {
+            chain.doFilter(request, response);
+            return;
+        }
         boolean write = !java.util.Set.of("GET", "HEAD", "OPTIONS").contains(request.getMethod());
         String bucket = "read";
         int maximum = 240;
@@ -103,17 +112,6 @@ public final class ApiRequestFilter extends OncePerRequestFilter {
         // Never trust caller-supplied X-Forwarded-For. Forwarding is disabled in server configuration.
         String[] client = client(request);
         long wait = limits.retryAfter(bucket + ":" + client[0], maximum * Integer.parseInt(client[1]), window);
-        var user = CurrentUser.id();
-        if (user.isPresent() && revocations != null) {
-            var session = request.getSession(false);
-            Object authAt = session == null ? null : session.getAttribute(SessionRevocations.AUTH_AT);
-            if (revocations.isRevoked(user.get(), authAt instanceof Long at ? at : 0L)) {
-                if (session != null) session.invalidate();
-                org.springframework.security.core.context.SecurityContextHolder.clearContext();
-                reject(response, HttpStatus.UNAUTHORIZED, "Session expired; sign in again");
-                return;
-            }
-        }
         if (user.isPresent()) wait = Math.max(wait,
                 limits.retryAfter(bucket + ":user:" + user.get(), maximum, window));
         if (wait > 0) {
@@ -145,6 +143,18 @@ public final class ApiRequestFilter extends OncePerRequestFilter {
                 };
             }
         }, response);
+    }
+
+    private boolean sessionExpired(HttpServletRequest request, UUID userId) {
+        var session = request.getSession(false);
+        try {
+            Object authAt = session == null ? null : session.getAttribute(SessionRevocations.AUTH_AT);
+            if (!revocations.isRevoked(userId, authAt instanceof Long at ? at : 0L)) return false;
+            if (session != null) session.invalidate();
+        } catch (IllegalStateException alreadyInvalidated) {
+            // Another request invalidated the same session while this request was using it.
+        }
+        return true;
     }
 
     private void reject(HttpServletResponse response, HttpStatus status, String detail) throws IOException {
