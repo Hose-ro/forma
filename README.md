@@ -9,6 +9,8 @@ Tienda de demostración: frontend Next.js (este directorio) + backend Spring Boo
 
 Verificación: `npm run typecheck`, `npm run build`. Requiere Node.js 20.18.1+; la primera compilación necesita acceso a Google Fonts.
 
+Para activar el escaneo local antes de cada commit y push, instala `gitleaks` y ejecuta `npm run hooks:install` en la raíz del repositorio. El instalador retira el ajuste local anterior `core.hooksPath=.githooks` después de copiar los hooks. Consulta [Detección de secretos](backend/SECURITY.md#detección-de-secretos).
+
 ## Cómo se conecta
 - `next.config.mjs` proxya `/api/v1/*` a `BACKEND_URL` (variable solo de servidor). El navegador nunca llama a otro origen.
 - `src/lib/api/`: `schemas.ts` (contratos zod), `http.ts` (errores Problem Details), `client.ts` (navegador, CSRF), `server.ts` (Server Components).

@@ -35,7 +35,8 @@ Revisar soporte/parches de estas líneas antes de producción y antes de agregar
   el runtime no puede ser superusuario, crear roles/bases ni omitir RLS. El arranque lo comprueba.
   Provisionar permisos solo en tablas/secuencias de Olvenio: SELECT/INSERT/UPDATE/DELETE
   donde corresponda, sin DDL ni propiedad de esquema. Auditoría e historial deben ser
-  append-only para el runtime; configurar esos GRANT/REVOKE antes de producción.
+  append-only para el runtime. V23 revoca `DELETE` sobre `users` y `orders` y protege
+  las referencias a pedidos y autores en el historial. Aplica los permisos antes de abrir el tráfico.
 - V8 invalida cotizaciones antiguas sin revisión; los pedidos históricos se conservan.
   Probar migraciones en copia de la base y realizar respaldo antes de aplicarlas.
 - Rate limiting y sesiones viven en memoria por instancia; reiniciar borra sus contadores/sesiones.
@@ -64,9 +65,13 @@ Revisar soporte/parches de estas líneas antes de producción y antes de agregar
 
 ## Detección de secretos
 
-- `gitleaks` (config en `.gitleaks.toml`) revisa los cambios preparados antes de cada commit y los commits
-  nuevos antes de cada push (`.githooks/`). `npm install` activa los hooks (`core.hooksPath`); requiere
-  `brew install gitleaks`. Escaneo manual del historial: `npm run scan:secrets`.
+- Instala `gitleaks` (por ejemplo, `brew install gitleaks`) y ejecuta `npm run hooks:install` desde la raíz
+  para activar la revisión de cambios preparados y commits nuevos. Los hooks leen `.gitleaks.toml` del
+  worktree desde el que se ejecutan. La instalación es optativa y usa el directorio de hooks predeterminado
+  que Git comparte entre worktrees. Respeta los hooks existentes con contenido distinto. Después de copiar
+  los hooks, elimina el ajuste anterior `core.hooksPath=.githooks` de la configuración local. Si el worktree
+  tiene otra ruta efectiva, consulta `git config --show-origin --get-all core.hooksPath` antes de instalar.
+  Para escanear el historial, ejecuta `npm run scan:secrets`.
 - El workflow `.github/workflows/secrets.yml` escanea todo el historial en cada push y pull request.
 - GitHub tiene activados el escaneo de secretos y la protección al hacer push (solo patrones de proveedores).
 - Los valores falsos de pruebas van en la lista permitida de `.gitleaks.toml`; nunca permitir una ruta completa.
