@@ -20,6 +20,7 @@ public class JpaUserDetailsService implements UserDetailsService {
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String email) {
         return users.findByEmailIgnoreCase(email == null ? "" : email.trim())
+                .filter(u -> u.getPasswordHash() != null)
                 .map(u -> new AuthUser(u.getId(), u.getEmail(), u.getPasswordHash(), u.getRole().name(), u.isEnabled()))
                 .orElseThrow(() -> new UsernameNotFoundException("Not found"));
     }

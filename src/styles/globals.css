@@ -390,6 +390,9 @@
 .account-form .account-terms label { display: flex; flex-direction: row; align-items: center; gap: 8px; min-height: 30px; }
 .account-terms input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
 .account-terms a { margin-left: 23px; text-decoration: underline; text-underline-offset: 3px; font-size: 0.8rem; }
+.account-google { display: grid; justify-items: start; gap: 12px; margin-top: 24px; }
+.account-google .account-form { width: 100%; margin-top: 0; }
+.account-google .account-form h2 { margin-bottom: 0; }
 
 .account-interests { border-top: 1px solid var(--color-stone); margin-top: 24px; padding-top: 22px; }
 .account-interests h2 { margin-bottom: 7px; }

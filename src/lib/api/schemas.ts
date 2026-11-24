@@ -45,7 +45,17 @@ export const cartSchema = z.object({
 export const userSchema = z.object({
   id: z.string(), email: z.string(), firstName: z.string(), lastName: z.string(), phone: z.string().nullish(),
   role: z.enum(['CUSTOMER', 'ADMIN']), createdAt: z.string(), emailVerified: z.boolean().optional(), categoryInterests: z.array(z.string()).default([]),
+  googleLinked: z.boolean().default(false),
 });
+
+export const googleChallengeSchema = z.object({ clientId: z.string(), nonce: z.string() });
+export const googleRegistrationSchema = z.object({
+  ticket: z.string(), email: z.string(), firstName: z.string(), lastName: z.string(),
+});
+export const googleLoginSchema = z.union([
+  z.object({ user: userSchema, registration: z.nullish(z.never()) }),
+  z.object({ user: z.nullish(z.never()), registration: googleRegistrationSchema }),
+]);
 
 const orderStatus = z.enum(['DRAFT', 'PENDING_PAYMENT', 'PAID', 'PAYMENT_REVIEW', 'REFUNDED', 'PARTIALLY_REFUNDED', 'CANCELLED']);
 export const savedAddressSchema = z.object({

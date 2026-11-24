@@ -14,10 +14,11 @@ import { useShop } from '@/stores/shop';
 import type { Category, OrderSummary, User } from '@/types';
 import { PasswordField } from './password-field';
 import { AccountAddresses } from './account-addresses';
+import { GoogleAccountAccess, GoogleAccountLink } from './account-google';
 
 type Mode = 'login' | 'register' | 'forgot';
 
-export function Account() {
+export function Account({ googleEnabled }: { googleEnabled: boolean }) {
   const { user, sessionReady } = useShop();
   if (!sessionReady) return <div className="page skeleton" aria-label="Cargando tu cuenta" />;
 
@@ -32,7 +33,7 @@ export function Account() {
     <div className="account-dashboard-grid">
       <Orders key={user.id} signedIn />
       <aside className="account-sidebar">
-        <Profile key={user.id} user={user} />
+        <Profile key={user.id} user={user} googleEnabled={googleEnabled} />
         <AccountAddresses key={`addresses-${user.id}`} user={user} />
         <Interests key={user.id} user={user} />
       </aside>
@@ -45,13 +46,13 @@ export function Account() {
       <p>También puedes comprar como invitado.</p>
     </div>
     <div className="account-layout">
-      <AccountForm />
+      <AccountForm googleEnabled={googleEnabled} />
       <Orders signedIn={false} />
     </div>
   </div>;
 }
 
-function AccountForm() {
+function AccountForm({ googleEnabled }: { googleEnabled: boolean }) {
   const { login, register } = useShop();
   const router = useRouter();
   const next = useSearchParams().get('next');
@@ -59,7 +60,14 @@ function AccountForm() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const creating = mode === 'register';
+
+  function finishSignIn() {
+    const destination = safeRedirect(next ?? '');
+    if (destination) router.replace(destination);
+    router.refresh();
+  }
 
   function changeMode(value: Mode) {
     setMode(value);
@@ -69,6 +77,7 @@ function AccountForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy || googleBusy) return;
     const fields = new FormData(event.currentTarget);
     const email = String(fields.get('email')).trim();
     const password = String(fields.get('password') ?? '');
@@ -101,9 +110,7 @@ function AccountForm() {
         firstName: String(fields.get('name')).trim(), lastName: String(fields.get('lastName')).trim(),
         email, password, passwordConfirmation, termsAccepted,
       });
-      const destination = safeRedirect(next ?? '');
-      if (destination) router.replace(destination);
-      router.refresh();
+      finishSignIn();
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) setError('Correo o contraseña incorrectos.');
       else if (err instanceof ApiError && err.status === 409) setError('Ya existe una cuenta con ese correo. Inicia sesión.');
@@ -115,9 +122,9 @@ function AccountForm() {
 
   return <section aria-label={creating ? 'Crear cuenta' : 'Acceso a tu cuenta'}>
     <div className="category-tabs">
-      <button type="button" className={!creating ? 'active' : ''} aria-pressed={!creating} disabled={busy}
+      <button type="button" className={!creating ? 'active' : ''} aria-pressed={!creating} disabled={busy || googleBusy}
         onClick={() => changeMode('login')}>Iniciar sesión</button>
-      <button type="button" className={creating ? 'active' : ''} aria-pressed={creating} disabled={busy}
+      <button type="button" className={creating ? 'active' : ''} aria-pressed={creating} disabled={busy || googleBusy}
         onClick={() => changeMode('register')}>Crear cuenta</button>
     </div>
     <form className="account-form" onSubmit={submit}>
@@ -140,15 +147,17 @@ function AccountForm() {
       {mode === 'forgot' && <p className="muted">Escribe el correo de tu cuenta y te enviaremos un enlace de un solo uso.</p>}
       {notice && <p className="success-message" role="status">{notice}</p>}
       {error && <p className="error" role="alert">{error}</p>}
-      <button className="button" disabled={busy}>
+      <button className="button" disabled={busy || googleBusy}>
         {busy ? 'Un momento…' : mode === 'login' ? 'Entrar' : mode === 'forgot' ? 'Enviar enlace' : 'Crear cuenta'}
         <ArrowUpRight size={17} aria-hidden="true" />
       </button>
-      {!creating && <button type="button" className="text-link" disabled={busy}
+      {!creating && <button type="button" className="text-link" disabled={busy || googleBusy}
         onClick={() => changeMode(mode === 'login' ? 'forgot' : 'login')}>
         {mode === 'login' ? '¿Olvidaste tu contraseña?' : 'Volver a iniciar sesión'}
       </button>}
     </form>
+    {googleEnabled && mode !== 'forgot' && !busy &&
+      <GoogleAccountAccess onSignedIn={finishSignIn} onBusyChange={setGoogleBusy} />}
   </section>;
 }
 
@@ -208,7 +217,7 @@ function Orders({ signedIn }: { signedIn: boolean }) {
   </section>;
 }
 
-function Profile({ user }: { user: User }) {
+function Profile({ user, googleEnabled }: { user: User; googleEnabled: boolean }) {
   const router = useRouter();
   const { logout } = useShop();
   const [pending, setPending] = useState<'resend' | 'logout' | null>(null);
@@ -251,6 +260,7 @@ function Profile({ user }: { user: User }) {
     {user.emailVerified && <p className="account-verified"><CheckCircle2 size={16} aria-hidden="true" /> Correo confirmado</p>}
     {notice && <p className="success-message" role="status">{notice}</p>}
     {error && <p className="error" role="alert">{error}</p>}
+    {googleEnabled && user.role === 'CUSTOMER' && <GoogleAccountLink user={user} />}
     <div className="account-profile-actions">
       {user.role === 'ADMIN' && <Link className="text-link" href="/admin">Administración <ArrowUpRight size={15} aria-hidden="true" /></Link>}
       <button type="button" className="text-link" disabled={!!pending} onClick={() => void act('logout')}>

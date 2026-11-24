@@ -82,6 +82,9 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/error").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/home/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/google/challenge",
+                                "/api/v1/auth/google/login", "/api/v1/auth/google/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/google/link").hasRole("CUSTOMER")
                         .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/session", "/api/v1/auth/register",
                                 "/api/v1/auth/login", "/api/v1/auth/password/forgot", "/api/v1/auth/password/reset",
                                 "/api/v1/auth/email/verify").permitAll()

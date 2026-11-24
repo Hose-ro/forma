@@ -29,8 +29,10 @@ public class User {
     private UUID id;
     @Column(nullable = false)
     private String email;
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
+    @Column(name = "google_subject")
+    private String googleSubject;
     @Column(name = "first_name", nullable = false)
     private String firstName;
     @Column(name = "last_name", nullable = false)
@@ -94,7 +96,10 @@ public class User {
         this.passwordHash = passwordHash;
     }
 
-    /** Proven by a link sent to the address (verification or password reset). */
+    public void linkGoogle(String subject) {
+        this.googleSubject = subject;
+    }
+
     public void markEmailVerified(Instant now) {
         if (emailVerifiedAt == null) emailVerifiedAt = now;
     }
@@ -114,6 +119,7 @@ public class User {
     public UUID getId() { return id; }
     public String getEmail() { return email; }
     public String getPasswordHash() { return passwordHash; }
+    public String getGoogleSubject() { return googleSubject; }
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
     public String getPhone() { return phone; }

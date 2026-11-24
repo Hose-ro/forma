@@ -14,6 +14,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("select u from User u where u.id = :id")
     Optional<User> lockById(UUID id);
 
+    Optional<User> findByGoogleSubject(String googleSubject);
+
     @Query("select u from User u where lower(u.email) = lower(:email)")
     Optional<User> findByEmailIgnoreCase(String email);
 

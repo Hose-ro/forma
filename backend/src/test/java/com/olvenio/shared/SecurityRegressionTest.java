@@ -3,6 +3,7 @@ package com.olvenio.shared;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -12,6 +13,8 @@ import com.olvenio.checkout.api.CheckoutController;
 import com.olvenio.checkout.application.CheckoutService;
 import com.olvenio.identity.api.AuthController;
 import com.olvenio.identity.application.AccountService;
+import com.olvenio.identity.application.GoogleIdentityVerifier;
+import com.olvenio.identity.application.GoogleIdentityVerifier.GoogleIdentity;
 import com.olvenio.identity.application.IdentityDtos.UserView;
 import com.olvenio.shared.config.*;
 import com.olvenio.shared.security.*;
@@ -38,6 +41,7 @@ class SecurityRegressionTest {
     @Autowired MockMvc mvc;
     @Autowired PasswordEncoder encoder;
     @MockitoBean AccountService accounts;
+    @MockitoBean GoogleIdentityVerifier google;
     @MockitoBean com.olvenio.identity.application.AccountRecoveryService recovery;
     @MockitoBean UserDetailsService users;
     @MockitoBean CartService carts;
@@ -55,6 +59,75 @@ class SecurityRegressionTest {
                 .andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/carts")).andExpect(status().isForbidden());
         verifyNoInteractions(accounts, carts, users);
+    }
+
+    @Test void googleLinkRequiresCustomerSessionAndCsrf() throws Exception {
+        String body = """
+                {"credential":"google-token","password":"test-password"}
+                """;
+        AuthUser customer = new AuthUser(UUID.randomUUID(), "customer@example.com", null, "CUSTOMER", true);
+        AuthUser admin = new AuthUser(UUID.randomUUID(), "admin@example.com", null, "ADMIN", true);
+        mvc.perform(post("/api/v1/auth/google/link").with(csrf()).contentType("application/json").content(body))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/auth/google/link").with(user(admin)).with(csrf()).contentType("application/json").content(body))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/auth/google/link").with(user(customer)).contentType("application/json").content(body))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(google, accounts);
+    }
+
+    @Test void googleLoginUsesChallengeFromSameSessionAndRotatesSession() throws Exception {
+        when(google.clientId()).thenReturn("test-client-id");
+        var identity = new GoogleIdentity("test-subject", "google-user@gmail.com", "Test", "User", true);
+        var profile = new UserView(UUID.randomUUID(), identity.email(), "Test", "User", null, "CUSTOMER",
+                Instant.now(), true, List.of(), true);
+        var challenge = mvc.perform(post("/api/v1/auth/google/challenge").with(csrf()))
+                .andExpect(status().isOk()).andReturn();
+        var session = (MockHttpSession) challenge.getRequest().getSession(false);
+        String nonce = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(challenge.getResponse().getContentAsString()).get("nonce").asText();
+        String oldSessionId = session.getId();
+        when(google.verify("google-token", nonce)).thenReturn(identity);
+        when(accounts.googleLogin(identity)).thenReturn(profile);
+        String body = """
+                {"credential":"google-token"}
+                """;
+        mvc.perform(post("/api/v1/auth/google/login").with(csrf()).contentType("application/json").content(body))
+                .andExpect(status().isGone());
+        mvc.perform(post("/api/v1/auth/google/login").session(session).with(csrf()).contentType("application/json").content(body))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.user.id").value(profile.id().toString()));
+        assertThat(session.getId()).isNotEqualTo(oldSessionId);
+        when(accounts.profile(profile.id())).thenReturn(profile);
+        mvc.perform(get("/api/v1/auth/session").session(session))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.googleLinked").value(true));
+        verify(google, times(1)).verify("google-token", nonce);
+    }
+
+    @Test void googleRegistrationRequiresSessionTicketAndExplicitConsent() throws Exception {
+        when(google.clientId()).thenReturn("test-client-id");
+        var identity = new GoogleIdentity("new-subject", "new-user@gmail.com", "Test", "User", true);
+        var profile = new UserView(UUID.randomUUID(), identity.email(), "Test", "User", null, "CUSTOMER",
+                Instant.now(), true, List.of(), true);
+        when(google.verify(eq("google-token"), anyString())).thenReturn(identity);
+        when(accounts.googleRegister(eq(identity), any())).thenReturn(profile);
+        var challenge = mvc.perform(post("/api/v1/auth/google/challenge").with(csrf()))
+                .andExpect(status().isOk()).andReturn();
+        var session = (MockHttpSession) challenge.getRequest().getSession(false);
+        var login = mvc.perform(post("/api/v1/auth/google/login").session(session).with(csrf()).contentType("application/json")
+                .content("{\"credential\":\"google-token\"}")).andExpect(status().isOk()).andReturn();
+        String ticket = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(login.getResponse().getContentAsString()).at("/registration/ticket").asText();
+        String body = """
+                {"ticket":"%s","firstName":"Test","lastName":"User","termsAccepted":%b}
+                """;
+        mvc.perform(post("/api/v1/auth/google/register").session(session).with(csrf()).contentType("application/json")
+                .content(body.formatted(ticket, false))).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/auth/google/register").session(session).with(csrf()).contentType("application/json")
+                .content(body.formatted(UUID.randomUUID(), true))).andExpect(status().isGone());
+        mvc.perform(post("/api/v1/auth/google/register").session(session).with(csrf()).contentType("application/json")
+                .content(body.formatted(ticket, true))).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.email").value(identity.email()));
+        verify(accounts, times(1)).googleRegister(eq(identity), any());
     }
 
     @Test void rejectsPriceAndPaymentStatusMassAssignment() throws Exception {
@@ -100,7 +173,7 @@ class SecurityRegressionTest {
         String email = "session-test@example.com";
         when(users.loadUserByUsername(email)).thenReturn(new AuthUser(id, email,
                 encoder.encode("test-password"), "CUSTOMER", true));
-        when(accounts.profile(id)).thenReturn(new UserView(id, email, "Test", "User", null, "CUSTOMER", Instant.now(), false, List.of()));
+        when(accounts.profile(id)).thenReturn(new UserView(id, email, "Test", "User", null, "CUSTOMER", Instant.now(), false, List.of(), false));
         MockHttpSession session = new MockHttpSession();
         String oldId = session.getId();
         mvc.perform(post("/api/v1/auth/login").session(session).with(csrf()).contentType("application/json")

@@ -4,14 +4,17 @@ import { NextRequest, NextResponse } from 'next/server';
 export function proxy(request: NextRequest) {
   const nonce = randomBytes(24).toString('base64');
   const dev = process.env.NODE_ENV !== 'production';
+  // A visit to Mi cuenta can start through client navigation from any page.
+  const google = process.env.GOOGLE_SIGN_IN_ENABLED === 'true';
   const policy = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}${google ? ' https://accounts.google.com/gsi/client' : ''}`,
     // Motion and GSAP set inline styles. Script execution still requires the nonce.
-    "style-src 'self' 'unsafe-inline'",
+    `style-src 'self' 'unsafe-inline'${google ? ' https://accounts.google.com/gsi/style' : ''}`,
     "img-src 'self' https: data: blob:",
     "font-src 'self'",
-    `connect-src 'self'${dev ? ' ws: wss:' : ''}`,
+    `connect-src 'self'${dev ? ' ws: wss:' : ''}${google ? ' https://accounts.google.com/gsi/ https://accounts.google.com/o/fedcm/' : ''}`,
+    ...(google ? ['frame-src https://accounts.google.com/gsi/'] : []),
     "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'",
   ].join('; ');
   const headers = new Headers(request.headers);
@@ -31,6 +34,7 @@ export function proxy(request: NextRequest) {
   }
   const response = NextResponse.next({ request: { headers } });
   response.headers.set('Content-Security-Policy', policy);
+  if (google) response.headers.set('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
   if (/^\/(api|account|admin|cart|checkout)(\/|$)/.test(request.nextUrl.pathname)) {
     response.headers.set('Cache-Control', 'private, no-store');
   }

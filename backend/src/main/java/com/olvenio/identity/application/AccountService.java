@@ -1,6 +1,7 @@
 package com.olvenio.identity.application;
 
 import com.olvenio.catalog.infrastructure.CategoryRepository;
+import com.olvenio.identity.application.GoogleIdentityVerifier.GoogleIdentity;
 import com.olvenio.identity.application.IdentityDtos.AddressRequest;
 import com.olvenio.identity.application.IdentityDtos.AddressView;
 import com.olvenio.identity.application.IdentityDtos.RegisterRequest;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +56,70 @@ public class AccountService {
                 req.lastName(), blankToNull(req.phone()), Role.CUSTOMER);
         user.acceptTerms(TERMS_VERSION, Instant.now());
         return toView(users.save(user));
+    }
+
+    @Transactional(readOnly = true)
+    public UserView googleLogin(GoogleIdentity identity) {
+        var linked = users.findByGoogleSubject(identity.subject());
+        if (linked.isPresent()) {
+            User user = linked.get();
+            requireCustomer(user);
+            return toView(user);
+        }
+        if (users.existsByEmailIgnoreCase(identity.email())) throw existingGoogleAccount();
+        requireGoogleManagedEmail(identity);
+        return null;
+    }
+
+    @Transactional
+    public UserView googleRegister(GoogleIdentity identity, IdentityDtos.GoogleRegistration req) {
+        if (users.existsByEmailIgnoreCase(identity.email()) || users.findByGoogleSubject(identity.subject()).isPresent()) {
+            throw existingGoogleAccount();
+        }
+        requireGoogleManagedEmail(identity);
+        Instant now = Instant.now();
+        User user = new User(identity.email(), null, req.firstName(), req.lastName(), null, Role.CUSTOMER);
+        user.linkGoogle(identity.subject());
+        user.acceptTerms(TERMS_VERSION, now);
+        user.markEmailVerified(now);
+        return toView(users.save(user));
+    }
+
+    @Transactional
+    public UserView linkGoogle(UUID userId, GoogleIdentity identity, String password) {
+        User user = users.lockById(userId).orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+        requireCustomer(user);
+        if (user.getPasswordHash() == null || !encoder.matches(password, user.getPasswordHash())) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
+        if (!user.getEmail().equals(identity.email())) {
+            throw new BusinessRuleException("Google and Olvenio email addresses must match");
+        }
+        if (!identity.googleManagesEmail() && !user.isEmailVerified()) {
+            throw new BusinessRuleException("Confirm your Olvenio email before linking Google");
+        }
+        if (identity.subject().equals(user.getGoogleSubject())) return toView(user);
+        if (user.getGoogleSubject() != null || users.findByGoogleSubject(identity.subject()).isPresent()) {
+            throw new ConflictException("Google account already linked");
+        }
+        user.linkGoogle(identity.subject());
+        return toView(user);
+    }
+
+    private static ConflictException existingGoogleAccount() {
+        return new ConflictException("Sign in to your existing Olvenio account before linking Google");
+    }
+
+    private static void requireGoogleManagedEmail(GoogleIdentity identity) {
+        if (!identity.googleManagesEmail()) {
+            throw new BusinessRuleException("Register and confirm your email with Olvenio before linking Google");
+        }
+    }
+
+    private static void requireCustomer(User user) {
+        if (!user.isEnabled() || user.getRole() != Role.CUSTOMER) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -171,7 +237,8 @@ public class AccountService {
 
     static UserView toView(User u) {
         return new UserView(u.getId(), u.getEmail(), u.getFirstName(), u.getLastName(), u.getPhone(),
-                u.getRole().name(), u.getCreatedAt(), u.isEmailVerified(), u.getCategoryInterests().stream().sorted().toList());
+                u.getRole().name(), u.getCreatedAt(), u.isEmailVerified(), u.getCategoryInterests().stream().sorted().toList(),
+                u.getGoogleSubject() != null);
     }
 
     static AddressView toView(Address a) {

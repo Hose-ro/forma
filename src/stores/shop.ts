@@ -27,6 +27,7 @@ type ShopState = {
   remove: (itemId: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (data: Registration) => Promise<void>;
+  syncAfterAuth: (user: User) => Promise<void>;
   logout: () => Promise<void>;
   setAnnouncement: (text: string) => void;
 };
@@ -154,6 +155,7 @@ export const useShop = create<ShopState>()(persist((set, get) => {
     async register(data) {
       await syncAfterAuth(await api.post('/auth/register', userSchema, data));
     },
+    syncAfterAuth,
     async logout() {
       await api.post('/auth/logout', null);
       await syncAfterAuth(null);

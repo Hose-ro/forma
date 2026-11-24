@@ -217,7 +217,7 @@ function LegalDocument({ lines, intro, reading, sections, summary, children }: {
   );
 }
 
-export function PrivacyNotice() {
+export function PrivacyNotice({ googleEnabled = false }: { googleEnabled?: boolean }) {
   return (
     <LegalDocument
       lines={['Aviso de', <i key="i">privacidad.</i>]}
@@ -249,6 +249,10 @@ export function PrivacyNotice() {
                   </Reveal>
                 ))}
               </div>
+              {googleEnabled && <p>
+                Si eliges continuar con Google, recibimos un identificador de tu cuenta de Google, tu correo y, cuando
+                están disponibles, tu nombre y apellidos. Guardamos el identificador para reconocer tu cuenta vinculada.
+              </p>}
               <p>
                 Si solicitas factura, guardamos los datos fiscales que ingreses y los archivos PDF y XML correspondientes.
                 Por seguridad, procesamos tu dirección IP de forma temporal para limitar intentos de acceso abusivos; no se guarda en tu
@@ -282,6 +286,7 @@ export function PrivacyNotice() {
                 por lo que el código del navegador no puede leerlas. No hay cookies de analítica, publicidad ni de redes sociales, y las
                 tipografías se sirven desde nuestro propio dominio.
               </p>
+              {googleEnabled && <p>En Mi cuenta, Google Identity Services puede usar cookies propias para el acceso opcional con Google.</p>}
               <div className="legal-cookies" role="table" aria-label="Cookies que utiliza el sitio">
                 <div role="row" className="legal-cookies-head">
                   <span role="columnheader">Cookie</span><span role="columnheader">Para qué sirve</span><span role="columnheader">Duración</span>
@@ -430,7 +435,7 @@ const BROWSERS: { icon: LucideIcon; name: string; path: string }[] = [
   { icon: Monitor, name: 'Edge', path: 'Configuración › Cookies y permisos del sitio' },
 ];
 
-export function CookiePolicy() {
+export function CookiePolicy({ googleEnabled = false }: { googleEnabled?: boolean }) {
   const reduced = useReducedMotion();
   return (
     <LegalDocument
@@ -453,7 +458,8 @@ export function CookiePolicy() {
       </Section>
 
       <Section id="cookies-usadas" index={2} title={<>Las cookies que <i>usamos.</i></>}>
-        <p>Estas son todas. No hay más, ni ocultas ni de terceros:</p>
+        <p>Estas son las cookies que establece Olvenio.</p>
+        {googleEnabled && <p>En Mi cuenta, el botón opcional de Google carga Google Identity Services, que puede usar cookies propias para autenticarte.</p>}
         <div className="cookie-cards">
           {COOKIE_DETAILS.map((c, i) => (
             <Reveal key={c.name} delay={i * 0.08} className="cookie-card">

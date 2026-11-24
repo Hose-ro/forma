@@ -28,3 +28,11 @@ Configuración gratuita preparada para Vercel + Render + Neon: [guía de staging
 ## Producción
 
 Pasos para abrir ventas reales (datos del negocio, envíos, Mercado Pago, dominio y correo): [deploy/PRODUCTION.md](deploy/PRODUCTION.md).
+
+### Acceso opcional con Google
+
+1. En [Google Auth Platform](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid?hl=es-419), configura la marca de Olvenio y crea un cliente OAuth de tipo **Aplicación web** para el entorno. Agrega el origen exacto de la tienda en **Orígenes autorizados de JavaScript** (por ejemplo, `http://localhost:3000` para desarrollo o `https://olvenio.com` en producción). Usa el aviso de privacidad del entorno en la pantalla de consentimiento.
+2. Define `APP_GOOGLE_CLIENT_ID` con el ID del cliente en Spring Boot. Flyway aplica la migración `V21`. Define `GOOGLE_SIGN_IN_ENABLED=true` en Next.js y vuelve a desplegar o reinicia ambos servicios. La biblioteca usa un callback de JavaScript, así que basta con autorizar el origen.
+3. En **Mi cuenta**, prueba un registro nuevo y la aceptación de términos. Para vincular una cuenta existente, entra con correo y contraseña, abre **Tu perfil**, selecciona **Vincular cuenta de Google** y vuelve a confirmar tu contraseña. Luego cierra sesión y comprueba que el botón de Google abre la misma cuenta.
+
+El registro directo se habilita para direcciones de Gmail y Google Workspace. Si Google no aloja el correo, el cliente primero crea una cuenta de Olvenio, confirma su correo y la vincula desde el perfil. Para desactivar la integración, quita `APP_GOOGLE_CLIENT_ID` del backend y configura `GOOGLE_SIGN_IN_ENABLED=false` en el frontend.

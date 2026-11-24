@@ -1,6 +1,11 @@
 package com.olvenio.identity.api;
 
 import com.olvenio.identity.application.AccountService;
+import com.olvenio.identity.application.GoogleIdentityVerifier;
+import com.olvenio.identity.application.GoogleIdentityVerifier.GoogleIdentity;
+import com.olvenio.identity.application.IdentityDtos.GoogleCredential;
+import com.olvenio.identity.application.IdentityDtos.GoogleLink;
+import com.olvenio.identity.application.IdentityDtos.GoogleRegistration;
 import com.olvenio.identity.application.IdentityDtos.LoginRequest;
 import com.olvenio.identity.application.IdentityDtos.RegisterRequest;
 import com.olvenio.identity.application.IdentityDtos.UserView;
@@ -13,10 +18,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -31,11 +40,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 @Tag(name = "Auth")
 public class AuthController {
+    private static final String GOOGLE_CHALLENGE = AuthController.class.getName() + ".googleChallenge";
+    private static final String GOOGLE_SIGNUP = AuthController.class.getName() + ".googleSignup";
 
     private final AccountService accounts;
     private final AuthenticationManager authenticationManager;
@@ -43,12 +55,15 @@ public class AuthController {
     private final CsrfTokenRepository csrfTokenRepository;
     private final RequestLimits limits;
     private final com.olvenio.identity.application.AccountRecoveryService recovery;
+    private final GoogleIdentityVerifier google;
 
     public AuthController(AccountService accounts, AuthenticationManager authenticationManager,
                           SecurityContextRepository contextRepository, CsrfTokenRepository csrfTokenRepository,
                           RequestLimits limits,
-                          com.olvenio.identity.application.AccountRecoveryService recovery) {
+                          com.olvenio.identity.application.AccountRecoveryService recovery,
+                          GoogleIdentityVerifier google) {
         this.recovery = recovery;
+        this.google = google;
         this.accounts = accounts;
         this.authenticationManager = authenticationManager;
         this.contextRepository = contextRepository;
@@ -125,6 +140,88 @@ public class AuthController {
         return accounts.profile(user.id());
     }
 
+    private record GoogleChallenge(String nonce, UUID userId, Instant expiresAt) {}
+    private record GoogleSignup(UUID ticket, GoogleIdentity identity, Instant expiresAt) {}
+    public record GoogleProfile(UUID ticket, String email, String firstName, String lastName) {}
+    public record GoogleLoginResult(UserView user, GoogleProfile registration) {}
+
+    @PostMapping("/google/challenge")
+    public Map<String, String> googleChallenge(@AuthenticationPrincipal AuthUser user, HttpServletRequest request) {
+        String clientId = google.clientId();
+        if (user != null && user.isAdmin()) throw new AccessDeniedException("Customer access required");
+        HttpSession session = request.getSession(true);
+        UUID userId = user == null ? null : user.id();
+        if (session.getAttribute(GOOGLE_CHALLENGE) instanceof GoogleChallenge current
+                && Objects.equals(current.userId(), userId) && Instant.now().isBefore(current.expiresAt())) {
+            return Map.of("clientId", clientId, "nonce", current.nonce());
+        }
+        String nonce = UUID.randomUUID().toString();
+        session.setAttribute(GOOGLE_CHALLENGE, new GoogleChallenge(nonce, userId, Instant.now().plusSeconds(900)));
+        return Map.of("clientId", clientId, "nonce", nonce);
+    }
+
+    @PostMapping("/google/login")
+    public GoogleLoginResult googleLogin(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody GoogleCredential req,
+                                         HttpServletRequest request, HttpServletResponse response) {
+        requireAnonymous(user);
+        HttpSession session = request.getSession(false);
+        GoogleIdentity identity = verifyGoogle(req.credential(), session, null);
+        UserView linked = accounts.googleLogin(identity);
+        if (linked != null) {
+            startGoogleSession(linked, request, response);
+            return new GoogleLoginResult(linked, null);
+        }
+        session.removeAttribute(GOOGLE_CHALLENGE);
+        UUID ticket = UUID.randomUUID();
+        session.setAttribute(GOOGLE_SIGNUP, new GoogleSignup(ticket, identity, Instant.now().plusSeconds(900)));
+        return new GoogleLoginResult(null, new GoogleProfile(ticket, identity.email(), identity.firstName(), identity.lastName()));
+    }
+
+    @PostMapping("/google/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public UserView googleRegister(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody GoogleRegistration req,
+                                   HttpServletRequest request, HttpServletResponse response) {
+        requireAnonymous(user);
+        google.clientId();
+        HttpSession session = request.getSession(false);
+        if (session == null || !(session.getAttribute(GOOGLE_SIGNUP) instanceof GoogleSignup signup)
+                || !signup.ticket().equals(req.ticket()) || !Instant.now().isBefore(signup.expiresAt())) {
+            throw new ResponseStatusException(HttpStatus.GONE, "Google signup expired");
+        }
+        UserView registered = accounts.googleRegister(signup.identity(), req);
+        startGoogleSession(registered, request, response);
+        return registered;
+    }
+
+    @PostMapping("/google/link")
+    public UserView googleLink(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody GoogleLink req,
+                               HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        GoogleIdentity identity = verifyGoogle(req.credential(), session, user.id());
+        UserView linked = accounts.linkGoogle(user.id(), identity, req.password());
+        session.removeAttribute(GOOGLE_CHALLENGE);
+        return linked;
+    }
+
+    private GoogleIdentity verifyGoogle(String credential, HttpSession session, UUID userId) {
+        google.clientId();
+        if (session == null || !(session.getAttribute(GOOGLE_CHALLENGE) instanceof GoogleChallenge challenge)
+                || !Objects.equals(challenge.userId(), userId) || !Instant.now().isBefore(challenge.expiresAt())) {
+            throw new ResponseStatusException(HttpStatus.GONE, "Google challenge expired");
+        }
+        return google.verify(credential, challenge.nonce());
+    }
+
+    private static void requireAnonymous(AuthUser user) {
+        if (user != null) throw new AccessDeniedException("Sign out before switching accounts");
+    }
+
+    private void startGoogleSession(UserView user, HttpServletRequest request, HttpServletResponse response) {
+        var principal = new AuthUser(user.id(), user.email(), null, user.role(), true);
+        saveSession(UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()),
+                request, response);
+    }
+
     @Operation(summary = "Log out and invalidate the session")
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -176,19 +273,26 @@ public class AuthController {
             org.slf4j.LoggerFactory.getLogger(AuthController.class).info("Authentication failed");
             throw ex;
         }
+        saveSession(auth, request, response);
+        return (AuthUser) auth.getPrincipal();
+    }
+
+    private void saveSession(Authentication auth, HttpServletRequest request, HttpServletResponse response) {
         // Session fixation protection: rotate the session id on privilege change.
         if (request.getSession(false) != null) {
             request.changeSessionId();
         } else {
             request.getSession(true);
         }
-        request.getSession().setAttribute(com.olvenio.shared.security.SessionRevocations.AUTH_AT, System.currentTimeMillis());
+        HttpSession session = request.getSession();
+        session.removeAttribute(GOOGLE_CHALLENGE);
+        session.removeAttribute(GOOGLE_SIGNUP);
+        session.setAttribute(com.olvenio.shared.security.SessionRevocations.AUTH_AT, System.currentTimeMillis());
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(auth);
         SecurityContextHolder.setContext(context);
         contextRepository.saveContext(context, request, response);
         // Rotate CSRF token after authentication; client must re-fetch /auth/csrf.
         csrfTokenRepository.saveToken(null, request, response);
-        return (AuthUser) auth.getPrincipal();
     }
 }

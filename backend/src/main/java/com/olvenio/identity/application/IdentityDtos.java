@@ -41,13 +41,26 @@ public final class IdentityDtos {
         return password == null || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= 72;
     }
 
+    public record GoogleCredential(@NotBlank @Size(max = 8192) String credential) {}
+
+    public record GoogleRegistration(@NotNull UUID ticket,
+                                     @NotBlank @Size(max = 100) String firstName,
+                                     @NotBlank @Size(max = 100) String lastName,
+                                     @NotNull @AssertTrue Boolean termsAccepted) {}
+
+    public record GoogleLink(@NotBlank @Size(max = 8192) String credential,
+                             @NotBlank @Size(max = 72) String password) {
+        @AssertTrue(message = "password must not exceed 72 UTF-8 bytes")
+        public boolean isPasswordWithinBcryptLimit() { return bcryptLength(password); }
+    }
+
     public record UpdateProfileRequest(@Size(min = 1, max = 100) String firstName,
                                        @Size(min = 1, max = 100) String lastName,
                                        @Size(max = 30) @Pattern(regexp = "^[0-9+()\\-\\s]*$") String phone) {
     }
 
     public record UserView(UUID id, String email, String firstName, String lastName, String phone, String role,
-                           Instant createdAt, boolean emailVerified, List<UUID> categoryInterests) {
+                           Instant createdAt, boolean emailVerified, List<UUID> categoryInterests, boolean googleLinked) {
     }
 
     public record UpdateInterestsRequest(@NotNull @Size(max = 20) Set<@NotNull UUID> categoryIds) {}
