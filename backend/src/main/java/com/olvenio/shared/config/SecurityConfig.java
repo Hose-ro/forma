@@ -74,7 +74,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint((req, res, ex) -> writeProblem(res, objectMapper,
                                 HttpStatus.UNAUTHORIZED, "Unauthorized", "Authentication required"))
                         .accessDeniedHandler((req, res, ex) -> {
-                            if (req.getRequestURI().startsWith("/api/v1/admin/"))
+                            if (ApiRequestFilter.servletPath(req).startsWith("/api/v1/admin/"))
                                 org.slf4j.LoggerFactory.getLogger(SecurityConfig.class).warn("Administrative access denied");
                             writeProblem(res, objectMapper, HttpStatus.FORBIDDEN, "Forbidden", "Access denied");
                         }))

@@ -44,7 +44,7 @@ class EmailRegistrationIntegrationTest {
         MockHttpSession session = new MockHttpSession();
         String oldSessionId = session.getId();
         UUID id = begin(email, session);
-        mvc.perform(get("/api/v1/auth/session").session(session)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/auth/session").servletPath("/api/v1/auth/session").session(session)).andExpect(status().isNoContent());
         mvc.perform(write("/login", "{\"email\":\"%s\",\"password\":\"registration-password\"}".formatted(email), session))
                 .andExpect(status().isUnauthorized());
         mailWorker.deliverEmails();
@@ -62,12 +62,12 @@ class EmailRegistrationIntegrationTest {
             assertThat(message.getText()).contains("\n\n" + code + "\n\n");
         });
         String confirmation = confirmation(id, code);
-        mvc.perform(post("/api/v1/auth/register/verify").session(session).contentType("application/json").content(confirmation))
+        mvc.perform(post("/api/v1/auth/register/verify").servletPath("/api/v1/auth/register/verify").session(session).contentType("application/json").content(confirmation))
                 .andExpect(status().isForbidden());
         mvc.perform(write("/register/verify", confirmation, session))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.emailVerified").value(true));
         assertThat(session.getId()).isNotEqualTo(oldSessionId);
-        mvc.perform(get("/api/v1/auth/session").session(session))
+        mvc.perform(get("/api/v1/auth/session").servletPath("/api/v1/auth/session").session(session))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.email").value(email));
         mvc.perform(write("/register/verify", confirmation, new MockHttpSession()))
                 .andExpect(status().isUnprocessableEntity());
@@ -88,7 +88,7 @@ class EmailRegistrationIntegrationTest {
         db.update("update account_emails set expires_at=now()-interval '1 second' where id=?", expired);
         mvc.perform(write("/register/verify", confirmation(expired, tokens.registrationCode(expired)), session))
                 .andExpect(status().isUnprocessableEntity());
-        mvc.perform(get("/api/v1/auth/session").session(session)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/auth/session").servletPath("/api/v1/auth/session").session(session)).andExpect(status().isNoContent());
     }
 
     private UUID begin(String email, MockHttpSession session) throws Exception {
@@ -102,7 +102,8 @@ class EmailRegistrationIntegrationTest {
     }
 
     private static MockHttpServletRequestBuilder write(String path, String body, MockHttpSession session) {
-        return post("/api/v1/auth" + path).session(session).with(csrf()).contentType("application/json").content(body);
+        String servletPath = "/api/v1/auth" + path;
+        return post(servletPath).servletPath(servletPath).session(session).with(csrf()).contentType("application/json").content(body);
     }
 
     private static String confirmation(UUID id, String code) {

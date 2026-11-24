@@ -65,21 +65,21 @@ class HomeHeroApiTest {
     @Test
     void storefrontReadsPublishedHeroesWithoutSigningIn() throws Exception {
         when(heroes.published()).thenReturn(List.of(new HeroView("b", true, JsonNodeFactory.instance.objectNode(), Instant.now())));
-        mvc.perform(get("/api/v1/home/heroes")).andExpect(status().isOk())
+        mvc.perform(get("/api/v1/home/heroes").servletPath("/api/v1/home/heroes")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].variant").value("b"));
     }
 
     @Test
     void onlyAdministratorsEditHeroes() throws Exception {
-        mvc.perform(get("/api/v1/admin/home/heroes")).andExpect(status().isUnauthorized());
-        mvc.perform(put("/api/v1/admin/home/heroes/c").with(user(principal("CUSTOMER"))).with(csrf())
+        mvc.perform(get("/api/v1/admin/home/heroes").servletPath("/api/v1/admin/home/heroes")).andExpect(status().isUnauthorized());
+        mvc.perform(put("/api/v1/admin/home/heroes/c").servletPath("/api/v1/admin/home/heroes/c").with(user(principal("CUSTOMER"))).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(CAMPAIGN)).andExpect(status().isForbidden());
         verify(admin, never()).replaceHero(any(), any(Boolean.class), any());
     }
 
     @Test
     void administratorReplacesAValidHero() throws Exception {
-        mvc.perform(put("/api/v1/admin/home/heroes/c").with(user(principal("ADMIN"))).with(csrf())
+        mvc.perform(put("/api/v1/admin/home/heroes/c").servletPath("/api/v1/admin/home/heroes/c").with(user(principal("ADMIN"))).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(CAMPAIGN)).andExpect(status().isOk());
         verify(admin).replaceHero(eq("c"), eq(true), any(HeroC.class));
     }
@@ -103,10 +103,10 @@ class HomeHeroApiTest {
                 {"enabled": true}""",
         };
         for (String body : invalid) {
-            mvc.perform(put("/api/v1/admin/home/heroes/d").with(user(principal("ADMIN"))).with(csrf())
+            mvc.perform(put("/api/v1/admin/home/heroes/d").servletPath("/api/v1/admin/home/heroes/d").with(user(principal("ADMIN"))).with(csrf())
                     .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isBadRequest());
         }
-        mvc.perform(put("/api/v1/admin/home/heroes/c").with(user(principal("ADMIN"))).with(csrf())
+        mvc.perform(put("/api/v1/admin/home/heroes/c").servletPath("/api/v1/admin/home/heroes/c").with(user(principal("ADMIN"))).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content("""
                         {"enabled": true, "content": {"campaigns": []}}""")).andExpect(status().isBadRequest());
         verify(admin, never()).replaceHero(any(), any(Boolean.class), any());
