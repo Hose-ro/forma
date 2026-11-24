@@ -3,8 +3,9 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { api } from '@/lib/api/client';
 import { ApiError, errorMessage } from '@/lib/api/http';
-import { cartSchema, userSchema } from '@/lib/api/schemas';
-import type { Cart, User } from '@/types';
+import { cartSchema, favoritesSchema, productSummarySchema, userSchema } from '@/lib/api/schemas';
+import { fromSummary } from '@/lib/product-summary';
+import type { Cart, Product, User } from '@/types';
 
 // Client state backed by the REST API. The cart and the session live on the server (HttpOnly cookies);
 // only the footer message preference is kept in localStorage.
@@ -12,6 +13,11 @@ type Registration = { firstName: string; lastName: string; email: string; passwo
 type ShopState = {
   cart: Cart | null; cartReady: boolean; cartBusy: boolean; cartError: string;
   user: User | null; sessionReady: boolean;
+  favorites: Map<string, Product> | null;
+  favoritesLoading: boolean; favoritesError: string;
+  favoriteUpdates: Partial<Record<string, string>>;
+  loadFavorites: () => Promise<void>;
+  toggleFavorite: (productId: string) => Promise<void>;
   announcement: string; drawer: boolean;
   init: () => Promise<void>;
   setDrawer: (open: boolean) => void;
@@ -32,6 +38,14 @@ const cartFailure = (e: unknown) =>
     : errorMessage(e, 'No pudimos actualizar tu bolsa. Inténtalo de nuevo.');
 
 export const useShop = create<ShopState>()(persist((set, get) => {
+  let sessionVersion = 0;
+
+  function setSession(user: User | null) {
+    sessionVersion++;
+    set({ user, sessionReady: true, favorites: null, favoritesLoading: false, favoritesError: '', favoriteUpdates: {} });
+    if (user) void get().loadFavorites();
+  }
+
   /** Runs a cart mutation; the server response is the single source of truth for quantities and totals. */
   async function mutate(run: (cart: Cart) => Promise<Cart>): Promise<boolean> {
     if (get().cartBusy) return false;
@@ -48,13 +62,14 @@ export const useShop = create<ShopState>()(persist((set, get) => {
   }
   /** After the identity changes, the server decides which cart applies (and merges the guest cart on login). */
   async function syncAfterAuth(user: User | null) {
-    set({ user, sessionReady: true });
+    setSession(user);
     try {
       set({ cart: user ? await api.post('/carts', cartSchema) : (await api.get('/carts/current', cartSchema)) ?? null, cartError: '' });
     } catch { set({ cart: null }); }
   }
   return {
     cart: null, cartReady: false, cartBusy: false, cartError: '', user: null, sessionReady: false,
+    favorites: null, favoritesLoading: false, favoritesError: '', favoriteUpdates: {},
     announcement: 'Objetos elegidos con intención.', drawer: false,
     async init() {
       if (started) return;
@@ -62,9 +77,57 @@ export const useShop = create<ShopState>()(persist((set, get) => {
       // Remove browser data from the original demo; this is a legacy key, not the current brand.
       try { localStorage.removeItem('forma-demo-v1'); } catch { /* storage unavailable */ }
       await Promise.all([
-        api.get('/auth/session', userSchema).then(user => set({ user: user ?? null }), () => set({ user: null })).finally(() => set({ sessionReady: true })),
+        api.get('/auth/session', userSchema).then(user => setSession(user ?? null), () => setSession(null)),
         get().refreshCart(),
       ]);
+    },
+    async loadFavorites() {
+      const { user, favorites, favoritesLoading } = get();
+      if (!user || favorites || favoritesLoading) return;
+      const version = sessionVersion;
+      set({ favoritesLoading: true, favoritesError: '' });
+      try {
+        const products = await api.get('/me/favorites', favoritesSchema);
+        if (version === sessionVersion) {
+          set({ favorites: new Map(products.map(product => [product.id, fromSummary(product)])), favoritesLoading: false });
+        }
+      } catch (error) {
+        if (version === sessionVersion) {
+          set({ favoritesLoading: false, favoritesError: errorMessage(error, 'No pudimos cargar tus favoritos.') });
+        }
+      }
+    },
+    async toggleFavorite(productId) {
+      const version = sessionVersion;
+      if (!get().favorites) await get().loadFavorites();
+      const { user, favorites, favoriteUpdates, favoritesError } = get();
+      if (version !== sessionVersion || !user || favoriteUpdates[productId] === 'pending') return;
+      if (!favorites) {
+        if (favoritesError) set({ favoriteUpdates: { ...favoriteUpdates, [productId]: favoritesError } });
+        return;
+      }
+
+      set({ favoriteUpdates: { ...favoriteUpdates, [productId]: 'pending' } });
+      const path = `/me/favorites/${productId}`;
+      try {
+        const product = favorites.has(productId)
+          ? await api.delete(path, null).then(() => null)
+          : fromSummary(await api.put(path, productSummarySchema));
+        if (version !== sessionVersion) return;
+        set(state => {
+          const updated = new Map(state.favorites);
+          updated.delete(productId);
+          const updates = { ...state.favoriteUpdates };
+          delete updates[productId];
+          return { favorites: product ? new Map([[productId, product], ...updated]) : updated, favoriteUpdates: updates };
+        });
+      } catch (error) {
+        if (version !== sessionVersion) return;
+        const message = error instanceof ApiError && error.status === 404
+          ? 'Este producto ya no está publicado.'
+          : errorMessage(error, 'No pudimos actualizar tus favoritos. Inténtalo de nuevo.');
+        set(state => ({ favoriteUpdates: { ...state.favoriteUpdates, [productId]: message } }));
+      }
     },
     setDrawer: drawer => set({ drawer }),
     async refreshCart() {

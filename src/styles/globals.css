@@ -253,6 +253,29 @@
 }
 
 /* Customer account */
+.favorite-control {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+}
+.favorite-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+.favorite-button[aria-pressed="true"], .favorite-button:hover { color: var(--color-accent); }
+.favorite-control .favorite-message {
+  background: var(--color-canvas);
+  padding: 6px 8px;
+  max-width: min(160px, 33vw);
+}
+.account-favorites-link { margin-top: 20px; }
 .account-dashboard { padding-top: 52px; }
 .account-heading { margin-bottom: 38px; }
 .account-heading h1 { font-size: 3.75rem; line-height: 1; }

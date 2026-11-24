@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowUpRight, CheckCircle2, Mail, Package } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Heart, Mail, Package } from 'lucide-react';
 import { api } from '@/lib/api/client';
 import { ApiError, errorMessage } from '@/lib/api/http';
 import { categoriesSchema, orderPageSchema, userSchema } from '@/lib/api/schemas';
@@ -25,6 +25,9 @@ export function Account() {
     <header className="account-heading">
       <h1>Mi cuenta</h1>
       <p>Hola, {user.firstName}.</p>
+      <Link href="/account/favorites" className="text-link account-favorites-link">
+        <Heart size={17} aria-hidden="true" /> Favoritos
+      </Link>
     </header>
     <div className="account-dashboard-grid">
       <Orders key={user.id} signedIn />

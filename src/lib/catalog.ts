@@ -1,18 +1,14 @@
-import type { z } from 'zod';
 import { ApiError } from './api/http';
-import { categoriesSchema, productDetailSchema, productPageSchema, type productSummarySchema } from './api/schemas';
+import { categoriesSchema, productDetailSchema, productPageSchema } from './api/schemas';
 import { serverGet } from './api/server';
 import { FALLBACK_IMAGE } from './data';
+import { fromSummary } from './product-summary';
 import type { Category, Product, ProductPage } from '@/types';
 
 // Catalog adapter: reads the real catalog from the REST API (server side) and maps it to the storefront model.
 export type CatalogQuery = { category?: string; categoryIds?: string[]; q?: string; minPrice?: string; maxPrice?: string; available?: boolean; sort?: string; page?: number; size?: number };
 
 const SORTS: Record<string, string> = { featured: 'featured', 'price-asc': 'price_asc', 'price-desc': 'price_desc', newest: 'newest' };
-
-function fromSummary(p: z.infer<typeof productSummarySchema>): Product {
-  return { id: p.id, slug: p.slug, name: p.name, description: '', material: '', category: p.category.name, categorySlug: p.category.slug, price: p.price, compareAtPrice: p.compareAtPrice ?? undefined, currency: p.currency, images: [p.imageUrl || FALLBACK_IMAGE], variants: [], defaultVariantId: p.defaultVariantId ?? null, available: p.available, featured: p.featured, createdAt: p.createdAt };
-}
 
 export const catalogRepository = {
   async list(query: CatalogQuery = {}): Promise<ProductPage> {

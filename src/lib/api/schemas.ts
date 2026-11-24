@@ -18,6 +18,7 @@ const productBase = {
 };
 export const productSummarySchema = z.object({ ...productBase, imageUrl: z.string().nullish(), defaultVariantId: z.string().nullish() });
 export const productPageSchema = page(productSummarySchema);
+export const favoritesSchema = z.array(productSummarySchema);
 const supplierSchema = z.object({
   productUrl: z.string().nullish(), specifications: z.string().nullish(),
   returnPolicyUrl: z.string().nullish(), returnPolicy: z.string().nullish(),
