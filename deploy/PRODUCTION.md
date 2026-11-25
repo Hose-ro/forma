@@ -38,13 +38,12 @@ solo se siembra en dev/staging.
 
 | Variable | Qué hace |
 | --- | --- |
-| `APP_SHIPPING_FLAT` | Tarifa para cualquier estado sin tarifa propia |
-| `APP_SHIPPING_ZONES` | Tarifas por estado: `Ciudad de México=99;Jalisco=149` |
+| `APP_SHIPPING_ZONES` | Estados con cobertura: `Ciudad de México;Jalisco` |
 | `APP_SHIPPING_ONLY_ZONES` | `true` = solo se entrega en los estados de la lista |
-| `APP_SHIPPING_FREE_FROM` | Envío gratis desde ese subtotal (vacío = nunca) |
 | `APP_SHIPPING_DELIVERY_ESTIMATE` | Texto del plazo, p. ej. `3 a 7 días hábiles` |
 
-El servidor calcula el cargo; el checkout y la política de envíos muestran exactamente esas reglas.
+El envío es gratis en todos los pedidos: el servidor siempre lo cobra en $0 y no hay variables de tarifa.
+El checkout y la política de envíos muestran la cobertura y el plazo configurados aquí.
 
 **Gestión de cada pedido** (`/admin` → Pedidos): pago aprobado → *Preparar* → captura paquetería y guía → *Marcar enviado*
 (el cliente recibe un correo con la guía) → *Marcar entregado*. Abre el pedido para ver la dirección de entrega.

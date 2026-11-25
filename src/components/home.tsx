@@ -314,7 +314,7 @@ function TrustBar() {
     <div><Lock size={26} strokeWidth={1.4} aria-hidden="true" />
       <p><strong>Pago seguro</strong>El cobro lo procesa nuestro proveedor de pagos; no guardamos datos de tarjeta.</p></div>
     <div><Truck size={26} strokeWidth={1.4} aria-hidden="true" />
-      <p><strong>Envío a domicilio</strong>Sigue tu pedido desde tu cuenta o con tu número de orden.</p></div>
+      <p><strong>Envío gratis</strong>Sigue tu pedido desde tu cuenta o con tu número de orden.</p></div>
     <div><RefreshCw size={26} strokeWidth={1.4} aria-hidden="true" />
       <p><strong>Cambios y devoluciones</strong>Consulta nuestra <Link href="/policies/shipping">política de envíos y devoluciones</Link>.</p></div>
   </section>;

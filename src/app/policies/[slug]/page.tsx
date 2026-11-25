@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { pageMetadata } from '@/lib/seo';
 import { BUSINESS, LIVE } from '@/lib/business';
-import { money } from '@/lib/data';
 import { serverGet } from '@/lib/api/server';
 import { shippingRulesSchema, type ShippingRules } from '@/lib/shipping';
 
@@ -15,25 +14,25 @@ const contact = `${B.email}${B.phone ? ` o al ${B.phone}` : ''} (${B.hours})`;
 // Shown above the real texts until NEXT_PUBLIC_STORE_MODE=live.
 const TEST_NOTICE: Section = { body: ['Tienda en modo de pruebas: por ahora no se procesan compras ni envíos reales. Estas condiciones son las que aplicarán al abrir ventas.'] };
 
-function shippingCosts(rules: ShippingRules | null): string[] {
-  if (!rules) return ['El costo de envío se calcula según el estado de destino y se muestra en el checkout antes de pagar.'];
-  const lines: string[] = [];
-  if (rules.zones.length) lines.push(`Tarifas por estado: ${rules.zones.map(z => `${z.state}, ${z.rate === 0 ? 'gratis' : money(z.rate)}`).join('; ')}.`);
-  lines.push(rules.onlyZones
-    ? 'Por ahora solo entregamos en los estados indicados. Si tu estado no aparece, escríbenos y buscaremos una alternativa.'
-    : `${rules.zones.length ? 'Resto de la República Mexicana' : 'Envío a toda la República Mexicana'}: ${rules.flat === 0 ? 'sin costo' : money(rules.flat)} por pedido.`);
-  if (rules.freeFrom != null) lines.push(`Envío gratis en compras desde ${money(rules.freeFrom)}.`);
-  lines.push('El costo exacto se muestra en el checkout al elegir tu estado y siempre antes de pagar. Los precios están en pesos mexicanos (MXN) e incluyen IVA.');
-  return lines;
+function shippingCoverage(rules: ShippingRules | null): string[] {
+  return [
+    'El envío es gratis en todos los pedidos, sin compra mínima.',
+    rules?.onlyZones
+      ? rules.zones.length
+        ? `Por ahora solo entregamos en: ${rules.zones.map(z => z.state).join(', ')}. Si tu estado no aparece, escríbenos y buscaremos una alternativa.`
+        : 'Por ahora no tenemos zonas de envío activas.'
+      : rules ? 'Entregamos en toda la República Mexicana.' : 'La cobertura para tu estado se confirma en el checkout antes de pagar.',
+    'Los precios están en pesos mexicanos (MXN) e incluyen IVA.',
+  ];
 }
 
 function live(rules: ShippingRules | null): Record<string, Policy> {
   return {
     shipping: {
       title: 'Envíos, cambios y devoluciones',
-      description: `Zonas de entrega, tarifas, plazos y condiciones de cambio y devolución de ${B.legalName}.`,
+      description: `Envío gratis, zonas de entrega, plazos y condiciones de cambio y devolución de ${B.legalName}.`,
       sections: [
-        { heading: 'Zonas y costo de envío', body: shippingCosts(rules) },
+        { heading: 'Envío gratis y zonas de entrega', body: shippingCoverage(rules) },
         { heading: 'Tiempos de entrega', body: [
           `Preparamos y despachamos tu pedido en ${B.handlingTime} a partir de la confirmación del pago. La entrega estimada es de ${rules?.deliveryEstimate ?? '3 a 7 días hábiles'} desde el despacho, según la paquetería y el destino.`,
           'Cuando tu pedido sale a reparto te enviamos un correo con la paquetería y el número de guía. También puedes consultar el estado desde el enlace del correo o en tu cuenta.',
@@ -66,7 +65,7 @@ function live(rules: ShippingRules | null): Record<string, Policy> {
           'Al navegar o comprar en este sitio aceptas estos términos. Si no estás de acuerdo, te pedimos no utilizarlo.',
         ] },
         { heading: 'Productos y precios', body: [
-          'Los precios se muestran en pesos mexicanos (MXN) e incluyen IVA. El costo de envío se informa por separado antes de pagar.',
+          'Los precios se muestran en pesos mexicanos (MXN) e incluyen IVA. El envío es gratis en todos los pedidos.',
           'La disponibilidad se confirma al crear el pedido. Las fotografías son de referencia: el color y el acabado pueden variar ligeramente respecto a la pieza física.',
           'Podemos actualizar precios y catálogo en cualquier momento; los cambios no afectan a los pedidos ya pagados.',
         ] },
@@ -78,7 +77,7 @@ function live(rules: ShippingRules | null): Record<string, Policy> {
           `Puedes solicitar tu factura (CFDI) desde el pedido en tu cuenta, o escribir a ${B.email} con tus datos fiscales y el número de pedido.`,
         ] },
         { heading: 'Envíos, cambios y devoluciones', body: [
-          'Las zonas de entrega, tarifas, plazos y el procedimiento de cambio, devolución y garantía se describen en la página «Envíos, cambios y devoluciones», que forma parte de estos términos.',
+          'Las zonas de entrega, los plazos y el procedimiento de cambio, devolución y garantía se describen en la página «Envíos, cambios y devoluciones», que forma parte de estos términos.',
         ] },
         { heading: 'Cuenta y uso del sitio', body: [
           'Eres responsable de la veracidad de tus datos y de mantener la confidencialidad de tu contraseña. No está permitido usar el sitio para fines ilícitos ni intentar vulnerar su seguridad.',

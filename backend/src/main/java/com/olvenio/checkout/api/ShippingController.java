@@ -7,7 +7,7 @@ import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Public shipping rules so the storefront shows exactly what the server will charge. */
+/** Public shipping rules: free on every order. The amounts stay in the contract, always zero. */
 @RestController
 @Tag(name = "Checkout")
 public class ShippingController {
@@ -28,8 +28,8 @@ public class ShippingController {
     @GetMapping("/api/v1/checkout/shipping")
     public ShippingRules rules() {
         var c = props.checkout();
-        return new ShippingRules(props.currency(), c.shippingFlat(), c.shippingFreeFrom(),
-                c.zoneRates().entrySet().stream().map(e -> new Zone(e.getKey(), e.getValue())).toList(),
+        return new ShippingRules(props.currency(), BigDecimal.ZERO, null,
+                c.zones().stream().map(state -> new Zone(state, BigDecimal.ZERO)).toList(),
                 c.shippingOnlyZones(), c.deliveryEstimate());
     }
 }
