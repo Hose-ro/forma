@@ -2,23 +2,17 @@
 
 import { Moon, Sun } from 'lucide-react';
 import { useEffect, useSyncExternalStore } from 'react';
-import { DARK_MODE_QUERY, THEME_COLORS, THEME_META_ID, THEME_STORAGE_KEY } from '@/lib/theme';
+import { THEME_COLORS, THEME_META_ID, THEME_STORAGE_KEY } from '@/lib/theme';
 
 const THEME_CHANGE = 'olvenio-theme-change';
 
 function isDark() {
-  const theme = document.documentElement.dataset.theme;
-  return theme === 'dark' || (!theme && window.matchMedia(DARK_MODE_QUERY).matches);
+  return document.documentElement.dataset.theme === 'dark';
 }
 
 function subscribe(onChange: () => void) {
-  const systemTheme = window.matchMedia(DARK_MODE_QUERY);
-  systemTheme.addEventListener('change', onChange);
   window.addEventListener(THEME_CHANGE, onChange);
-  return () => {
-    systemTheme.removeEventListener('change', onChange);
-    window.removeEventListener(THEME_CHANGE, onChange);
-  };
+  return () => window.removeEventListener(THEME_CHANGE, onChange);
 }
 
 function toggleTheme() {

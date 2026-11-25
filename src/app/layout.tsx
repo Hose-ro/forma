@@ -15,12 +15,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <html lang="es" suppressHydrationWarning>
+    // The font variables must live on <html>: tokens.css resolves them from :root.
+    <html lang="es" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
       <head>
         <meta id={THEME_META_ID} name="theme-color" content={THEME_COLORS.light} suppressHydrationWarning />
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitializationScript }} />
       </head>
-      <body className={`${display.variable} ${body.variable}`}>
+      <body>
         <Shell>{children}</Shell>
       </body>
     </html>

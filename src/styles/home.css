@@ -5,26 +5,28 @@
 .hm-hero { padding: 0 var(--page-gutter) 40px; max-width: 1600px; margin: auto; }
 .hm-hero h1 { font-size: clamp(46px, 5.6vw, 84px); line-height: 1.02; letter-spacing: -.035em; max-width: 14ch; animation: hm-rise .9s var(--ease-editorial) both; }
 .hm-hero h1 i { color: var(--color-accent); }
-.hm-hero-meta { display: flex; justify-content: space-between; gap: 12px; padding: 27px 0 8px; font-size: 10px; letter-spacing: .04em; color: var(--color-muted); }
+.hm-hero-meta { display: flex; justify-content: space-between; gap: 12px; padding: 27px 0 8px; font-size: 12px; letter-spacing: .04em; color: var(--color-muted); }
+.hm-hero-meta span:last-child:not(:first-child) { white-space: nowrap; }
 .hm-hero-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; padding: 20px 0 36px; }
 .hm-hero-head-spaced { padding-top: 44px; }
-.hm-hero-note { display: flex; flex-direction: column; gap: 18px; max-width: 290px; font-size: 12px; }
-.hm-hero-aside { max-width: 260px; margin-bottom: 8px; font-size: 12px; }
+.hm-hero-note { display: flex; flex-direction: column; gap: 18px; max-width: 290px; font-size: 14px; }
+.hm-hero-aside { max-width: 260px; margin-bottom: 8px; font-size: 14px; }
 .hm-hero-aside:empty, .hm-hero-side:empty { display: none; }
 .hm-hero-aside > nav:not(:first-child), .hm-hero-side > nav:not(:first-child) { margin-top: 12px; }
 
-/* Image tiles shared by every hero and the world shelf. */
-.hm-tile { position: relative; display: block; min-height: 0; overflow: hidden; background: var(--color-stone); color: #fff; }
+/* Image tiles shared by every hero and the world shelf. The scrim only fades inside the caption's top padding, so
+   white text keeps 4.5:1 even over a white photo. */
+.hm-tile { --tile-scrim: linear-gradient(to top, rgb(0 0 0 / .76), rgb(0 0 0 / .64) calc(100% - 72px), transparent); position: relative; display: block; min-height: 0; overflow: hidden; background: var(--color-stone); color: #fff; }
 .hm-tile img { transition: transform 1.2s var(--ease-editorial); }
 @media (hover: hover) { .hm-tile:hover img:not(.hm-parallax) { transform: scale(1.03); } }
 .hm-parallax { height: 115% !important; top: -7% !important; }
-.hm-tile-caption { position: absolute; inset: auto 0 0 0; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding: 28px 32px; background: linear-gradient(transparent, rgba(0, 0, 0, .62)); color: #fff; }
-.hm-tile-caption small { display: block; font-size: 10px; letter-spacing: .15em; text-transform: uppercase; font-weight: 600; }
+.hm-tile-caption { position: absolute; inset: auto 0 0 0; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding: 84px 32px 28px; background: var(--tile-scrim); color: #fff; }
+.hm-tile-caption small { display: block; font-size: 12px; letter-spacing: .15em; text-transform: uppercase; font-weight: 600; }
 .hm-tile-caption strong { display: block; margin-top: 6px; font-family: var(--font-display); font-weight: 400; font-size: clamp(22px, 2.2vw, 32px); line-height: 1.1; }
-.hm-tile-caption-stack { inset: 0; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 8px; background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, .7)); font-size: 13px; }
+.hm-tile-caption-stack { flex-direction: column; align-items: flex-start; gap: 8px; font-size: 15px; }
 .hm-tile-caption-stack strong { margin-top: 0; }
 .hm-tile-caption .hm-world-name { font-size: clamp(34px, 3.2vw, 44px); line-height: 1; }
-.hm-tile-cta { display: inline-flex; align-items: center; gap: 10px; padding-bottom: 5px; border-bottom: 1px solid currentColor; font-size: 12px; white-space: nowrap; }
+.hm-tile-cta { display: inline-flex; align-items: center; gap: 10px; padding-bottom: 5px; border-bottom: 1px solid currentColor; font-size: 14px; white-space: nowrap; }
 .hm-tile-caption-stack .hm-tile-cta { margin-top: 8px; }
 
 /* Hero A: large scene plus two world tiles. */
@@ -49,26 +51,26 @@
 .hm-moment-item { display: grid; grid-template-columns: clamp(96px, 10vw, 150px) minmax(0, 1fr); align-items: center; gap: 20px; height: 100%; padding: 12px; background: var(--color-paper); transition: background .2s; }
 .hm-moment-item:hover { background: light-dark(#fbfaf7, #2C3027); }
 .hm-moment-thumb { position: relative; display: block; align-self: stretch; min-height: 96px; overflow: hidden; background: var(--color-stone); }
-.hm-moment-item small { display: block; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; color: var(--color-accent); }
+.hm-moment-item small { display: block; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; color: var(--color-accent); }
 .hm-moment-item strong { display: block; margin: 2px 0; font-size: 16px; font-weight: 500; }
-.hm-price { font-size: 13px; color: var(--color-muted); }
+.hm-price { font-size: 15px; color: var(--color-muted); }
 
 /* Toggle buttons for heroes C/D and the world and gift shelves. */
 .hm-choices { display: flex; flex-wrap: wrap; gap: 8px; }
-.hm-choices button { min-height: 44px; padding: 0 20px; border: 1px solid var(--color-control-border); font-size: 12px; font-weight: 600; transition: background .2s, color .2s, border-color .2s; }
+.hm-choices button { min-height: 44px; padding: 0 20px; border: 1px solid var(--color-control-border); font-size: 14px; font-weight: 600; transition: background .2s, color .2s, border-color .2s; }
 .hm-choices button:hover { border-color: var(--color-ink); }
 .hm-choices button[aria-pressed="true"] { border-color: var(--color-ink); background: var(--color-ink); color: var(--color-canvas); }
 .hm-choices-rule { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 16px; padding-top: 18px; }
-.hm-choices-rule button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 64px; padding: 14px 0 0; border: 0; border-top: 2px solid var(--color-control-border); background: none; color: var(--color-muted); font-size: 13px; font-weight: 400; text-align: left; }
+.hm-choices-rule button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 64px; padding: 14px 0 0; border: 0; border-top: 2px solid var(--color-control-border); background: none; color: var(--color-muted); font-size: 15px; font-weight: 400; text-align: left; }
 .hm-choices-rule button:hover { border-top-color: var(--color-ink); }
 .hm-choices-rule button[aria-pressed="true"] { border-top-color: var(--color-ink); background: none; color: var(--color-ink); }
-.hm-choices-rule small { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; font-weight: 600; }
+.hm-choices-rule small { font-size: 12px; letter-spacing: .15em; text-transform: uppercase; font-weight: 600; }
 
 /* World bar. */
 .hm-worldbar { max-width: 1600px; margin: auto; padding: 24px var(--page-gutter) 64px; }
-.hm-worldbar h2 { margin-bottom: 22px; font: 600 10px/1.4 var(--font-body); letter-spacing: .15em; text-transform: uppercase; }
-.hm-worldbar ul { display: flex; gap: 28px; margin: 0; padding: 0 0 6px; list-style: none; overflow-x: auto; scrollbar-width: none; }
-.hm-worldbar a { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 104px; font-size: 12px; font-weight: 600; text-align: center; }
+.hm-worldbar h2 { margin-bottom: 22px; font: 600 12px/1.4 var(--font-body); letter-spacing: .15em; text-transform: uppercase; }
+.hm-worldbar ul { display: flex; gap: 28px; margin: -8px; padding: 8px; list-style: none; overflow-x: auto; scrollbar-width: none; }
+.hm-worldbar a { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 104px; font-size: 14px; font-weight: 600; text-align: center; }
 .hm-worldbar-media { position: relative; display: grid; place-items: center; width: 96px; height: 96px; border-radius: 50%; overflow: hidden; background: var(--color-stone); color: var(--color-accent); transition: transform .3s var(--ease-editorial); }
 .hm-worldbar a:hover .hm-worldbar-media { transform: scale(1.04); }
 
@@ -84,7 +86,7 @@
 .hm-trust { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; max-width: var(--content-max); margin: 40px auto 0; padding: 48px var(--page-gutter) 96px; border-top: 1px solid var(--color-stone); }
 .hm-trust > div { display: flex; align-items: flex-start; gap: 16px; }
 .hm-trust svg { color: var(--color-accent); }
-.hm-trust p { font-size: 13px; color: var(--color-muted); }
+.hm-trust p { font-size: 15px; color: var(--color-muted); }
 .hm-trust strong { display: block; color: var(--color-ink); font-size: 14px; font-weight: 600; }
 .hm-trust a { text-decoration: underline; text-underline-offset: 3px; }
 
@@ -106,7 +108,7 @@
   .hm-tile-main { height: 340px; }
   .hm-mosaic-side { grid-template-rows: none; grid-template-columns: repeat(2, minmax(0, 1fr)); height: 210px; }
   .hm-worlds-row { grid-template-columns: 1fr; height: auto; }
-  .hm-worlds-row .hm-tile { height: 220px; }
+  .hm-worlds-row .hm-tile { height: 300px; }
   .hm-campaign { grid-template-columns: 1fr; min-height: 0; padding-top: 16px; }
   .hm-campaign-image { order: -1; min-height: 340px; }
   .hm-moment { grid-template-columns: 1fr; min-height: 0; }
@@ -124,8 +126,8 @@
   .hm-tile-main { height: 300px; }
   .hm-tile-main .hm-tile-cta { display: none; }
   .hm-mosaic-side { gap: 10px; height: 190px; }
-  .hm-tile-caption { padding: 18px; }
-  .hm-mosaic-side .hm-tile-caption { padding: 14px; }
+  .hm-tile-caption { padding: 78px 18px 18px; }
+  .hm-mosaic-side .hm-tile-caption { padding: 78px 14px 14px; }
   .hm-mosaic-side .hm-tile-caption strong { font-size: 18px; }
   .hm-campaign-image { min-height: 320px; }
   .hm-campaign-copy { padding: 28px 22px; }
@@ -133,17 +135,17 @@
   .hm-moment-image { height: 260px; }
   .hm-moment-item { grid-template-columns: 84px minmax(0, 1fr); gap: 14px; padding: 8px; }
   .hm-moment-thumb { min-height: 84px; }
-  .hm-choices { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .hm-choices { flex-wrap: nowrap; margin: -8px; padding: 8px; overflow-x: auto; scrollbar-width: none; }
   .hm-choices button { flex: 0 0 auto; padding: 0 16px; }
-  .hm-choices-rule button { padding-top: 10px; min-height: 52px; font-size: 12px; }
+  .hm-choices-rule button { padding-top: 10px; min-height: 52px; font-size: 14px; }
   .hm-worldbar { padding-bottom: 40px; }
   .hm-worldbar ul { gap: 16px; }
-  .hm-worldbar a { width: 76px; font-size: 11px; }
+  .hm-worldbar a { width: 76px; font-size: 13px; }
   .hm-worldbar-media { width: 72px; height: 72px; }
   .product-grid.hm-world-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 14px; }
-  .hm-world-intro { min-height: 260px; }
+  .hm-world-intro { min-height: 320px; }
   .hm-shelf { padding-bottom: 72px; }
-  .hm-shelf .hm-choices { margin-top: 20px; }
+  .hm-shelf .hm-choices { margin-top: 12px; }
   .hm-trust { padding-bottom: 64px; }
 }
 

@@ -48,7 +48,7 @@
   margin-top: 24px;
   padding: 8px 14px;
   border: 1px solid var(--color-control-border);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .theme-toggle--menu[aria-pressed="true"] {
