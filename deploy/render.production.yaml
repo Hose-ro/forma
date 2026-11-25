@@ -55,11 +55,7 @@ services:
         sync: false
       - key: MERCADOPAGO_WEBHOOK_SECRET
         sync: false
-      # Shipping
-      - key: APP_SHIPPING_FLAT
-        sync: false
-      - key: APP_SHIPPING_FREE_FROM
-        sync: false
+      # Shipping (always free; only coverage and delivery time are configurable)
       - key: APP_SHIPPING_ZONES
         sync: false
       - key: APP_SHIPPING_ONLY_ZONES

@@ -13,7 +13,7 @@ public record AppProperties(String frontendOrigin, String sessionSecret, boolean
 
     public AppProperties {
         currency = currency == null ? "MXN" : currency;
-        checkout = checkout == null ? new Checkout(null, null, null, null, false, null) : checkout;
+        checkout = checkout == null ? new Checkout(null, null, false, null) : checkout;
         admin = admin == null ? new Admin(null, null) : admin;
     }
 
@@ -30,52 +30,25 @@ public record AppProperties(String frontendOrigin, String sessionSecret, boolean
         return origins;
     }
 
-    /** Shipping rules: per-state rates ("Jalisco=149;Nuevo León=129"), a flat fallback and an optional free-shipping threshold. */
-    public record Checkout(Duration quoteTtl, BigDecimal shippingFlat, BigDecimal shippingFreeFrom, String shippingZones,
-                           boolean shippingOnlyZones, String deliveryEstimate) {
+    /** Shipping is free on every order; these rules only say where the store delivers and how long it takes. */
+    public record Checkout(Duration quoteTtl, String shippingZones, boolean shippingOnlyZones, String deliveryEstimate) {
         public Checkout {
             quoteTtl = quoteTtl == null ? Duration.ofMinutes(30) : quoteTtl;
-            shippingFlat = shippingFlat == null ? BigDecimal.ZERO : shippingFlat;
             deliveryEstimate = deliveryEstimate == null || deliveryEstimate.isBlank() ? "3 a 7 días hábiles" : deliveryEstimate;
-            if (shippingFlat.signum() < 0 || (shippingFreeFrom != null && shippingFreeFrom.signum() < 0))
-                throw new IllegalStateException("Shipping amounts cannot be negative");
-            parseZones(shippingZones); // fail at startup on a malformed value
         }
 
-        /** Display name -> rate, in declaration order. */
-        public java.util.Map<String, BigDecimal> zoneRates() {
-            return parseZones(shippingZones);
+        /** Listed states in declaration order. A rate left over from paid shipping ("Jalisco=149") is ignored. */
+        public java.util.List<String> zones() {
+            if (shippingZones == null) return java.util.List.of();
+            return java.util.Arrays.stream(shippingZones.split("[;,]"))
+                    .map(entry -> entry.split("=", 2)[0].trim()).filter(state -> !state.isEmpty()).toList();
         }
 
-        private static java.util.Map<String, BigDecimal> parseZones(String shippingZones) {
-            var rates = new java.util.LinkedHashMap<String, BigDecimal>();
-            if (shippingZones == null || shippingZones.isBlank()) return rates;
-            for (String entry : shippingZones.split("[;,]")) {
-                if (entry.isBlank()) continue;
-                String[] kv = entry.split("=");
-                BigDecimal rate;
-                try { rate = kv.length == 2 ? new BigDecimal(kv[1].trim()) : null; } catch (NumberFormatException e) { rate = null; }
-                if (rate == null || rate.signum() < 0 || kv[0].isBlank())
-                    throw new IllegalStateException("APP_SHIPPING_ZONES must look like: Jalisco=149;Nuevo León=129");
-                rates.put(kv[0].trim(), rate);
-            }
-            return rates;
-        }
-
-        /** Server-side shipping price for a destination state, or empty when the store does not deliver there. */
-        public java.util.Optional<BigDecimal> shippingFor(String state, BigDecimal subtotal) {
-            BigDecimal rate = null;
+        /** Whether the store delivers to a destination state. */
+        public boolean deliversTo(String state) {
             String destination = PostalDirectory.canonicalState(state);
-            for (var entry : zoneRates().entrySet()) {
-                if (PostalDirectory.same(PostalDirectory.canonicalState(entry.getKey()), destination))
-                    rate = entry.getValue();
-            }
-            if (rate == null) {
-                if (shippingOnlyZones) return java.util.Optional.empty();
-                rate = shippingFlat;
-            }
-            if (shippingFreeFrom != null && subtotal.compareTo(shippingFreeFrom) >= 0) rate = BigDecimal.ZERO;
-            return java.util.Optional.of(rate);
+            return !shippingOnlyZones || zones().stream()
+                    .anyMatch(zone -> PostalDirectory.same(PostalDirectory.canonicalState(zone), destination));
         }
     }
 

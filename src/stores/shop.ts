@@ -22,6 +22,7 @@ type ShopState = {
   setDrawer: (open: boolean) => void;
   refreshCart: () => Promise<void>;
   add: (variantId: string, quantity?: number) => Promise<boolean>;
+  buy: (variantId: string, quantity: number) => Promise<boolean>;
   quantity: (itemId: string, quantity: number) => Promise<void>;
   remove: (itemId: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -141,6 +142,13 @@ export const useShop = create<ShopState>()(persist((set, get) => {
       set({ drawer: true });
       return ok;
     },
+    /** Leaves exactly this quantity of the variant in the bag, so buying twice never doubles the units. */
+    buy: (variantId, quantity) => mutate(cart => {
+      const line = cart.items.find(item => item.variantId === variantId);
+      return line
+        ? api.patch(`/carts/${cart.id}/items/${line.id}`, cartSchema, { quantity })
+        : api.post(`/carts/${cart.id}/items`, cartSchema, { variantId, quantity });
+    }),
     async quantity(itemId, quantity) {
       await mutate(cart => api.patch(`/carts/${cart.id}/items/${itemId}`, cartSchema, { quantity }));
     },

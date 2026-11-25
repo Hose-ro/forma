@@ -1,45 +1,37 @@
 package com.olvenio.checkout;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.olvenio.shared.config.AppProperties.Checkout;
-import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ShippingRulesTest {
-    private static Checkout rules(String freeFrom, boolean onlyZones) {
-        return new Checkout(null, new BigDecimal("180"), freeFrom == null ? null : new BigDecimal(freeFrom),
-                "Ciudad de México=99; Nuevo León=149", onlyZones, null);
-    }
-
-    private static BigDecimal price(Checkout c, String state, String subtotal) {
-        return c.shippingFor(state, new BigDecimal(subtotal)).orElseThrow();
+    private static Checkout rules(String zones, boolean onlyZones) {
+        return new Checkout(null, zones, onlyZones, null);
     }
 
     @Test
-    void zoneRateMatchesIgnoringAccentsAndCase() {
-        assertEquals(new BigDecimal("99"), price(rules(null, false), "ciudad de mexico", "500"));
-        assertEquals(new BigDecimal("149"), price(rules(null, false), " NUEVO LEÓN ", "500"));
+    void deliversEverywhereUnlessRestricted() {
+        assertTrue(rules(null, false).deliversTo("Yucatán"));
+        assertTrue(rules("Jalisco", false).deliversTo("Yucatán"));
+        assertFalse(rules("Jalisco", true).deliversTo("Yucatán"));
+        assertFalse(rules(" ", true).deliversTo("Yucatán"));
     }
 
     @Test
-    void otherStatesPayFlatRateUnlessRestricted() {
-        assertEquals(new BigDecimal("180"), price(rules(null, false), "Yucatán", "500"));
-        assertTrue(rules(null, true).shippingFor("Yucatán", new BigDecimal("500")).isEmpty());
+    void coverageMatchesIgnoringAccentsAndCase() {
+        Checkout c = rules("Ciudad de México; Nuevo León", true);
+        assertTrue(c.deliversTo("ciudad de mexico"));
+        assertTrue(c.deliversTo(" NUEVO LEÓN "));
     }
 
     @Test
-    void freeShippingStartsAtThreshold() {
-        assertEquals(new BigDecimal("99"), price(rules("1500", false), "Ciudad de México", "1499.99"));
-        assertEquals(BigDecimal.ZERO, price(rules("1500", false), "Ciudad de México", "1500"));
-        assertTrue(rules("1500", true).shippingFor("Yucatán", new BigDecimal("9999")).isEmpty());
-    }
-
-    @Test
-    void malformedZonesFailAtStartup() {
-        assertThrows(IllegalStateException.class, () -> new Checkout(null, null, null, "Jalisco:149", false, null));
-        assertThrows(IllegalStateException.class, () -> new Checkout(null, new BigDecimal("-1"), null, null, false, null));
+    void ratesLeftFromPaidShippingOnlyCountAsCoverage() {
+        Checkout c = rules("Ciudad de México=99; Nuevo León=149", true);
+        assertEquals(List.of("Ciudad de México", "Nuevo León"), c.zones());
+        assertTrue(c.deliversTo("Nuevo León"));
     }
 }

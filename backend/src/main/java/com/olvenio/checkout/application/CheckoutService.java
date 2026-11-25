@@ -95,10 +95,11 @@ public class CheckoutService {
             }
             return new OrderPricing.Line(v.unitPrice(), item.getQuantity());
         }).toList();
-        var goodsTotal = OrderPricing.compute(lines, Money.zero(cart.getCurrency())).subtotal().rounded();
-        var shippingRate = props.checkout().shippingFor(postal.state(), goodsTotal)
-                .orElseThrow(() -> new InvalidRequestException("Por ahora no hacemos envíos a ese estado."));
-        OrderPricing.Breakdown price = OrderPricing.compute(lines, Money.of(shippingRate, cart.getCurrency()));
+        if (!props.checkout().deliversTo(postal.state())) {
+            throw new InvalidRequestException("Por ahora no hacemos envíos a ese estado.");
+        }
+        // Shipping is free on every order.
+        OrderPricing.Breakdown price = OrderPricing.compute(lines, Money.zero(cart.getCurrency()));
 
         // Guests: the order is bound to the browser's guest token. Users: access goes through the session,
         // so the token is a random secret nobody holds.

@@ -137,7 +137,7 @@ public class OrderMailer {
             t.append("- ").append(i.get("product_name")).append(" (").append(i.get("variant_name")).append(") x")
                     .append(i.get("quantity")).append(" — ").append(money(i.get("line_total"), o)).append('\n');
         t.append("\nSubtotal: ").append(money(o.get("subtotal"), o))
-                .append("\nEnvío: ").append(money(o.get("shipping_total"), o))
+                .append("\nEnvío: ").append(((java.math.BigDecimal) o.get("shipping_total")).signum() == 0 ? "Gratis" : money(o.get("shipping_total"), o))
                 .append("\nTotal pagado: ").append(money(o.get("total"), o)).append("\n\n");
         var shipping = db.queryForList("""
                 select recipient_name,line1,line2,neighborhood,city,state,postal_code
