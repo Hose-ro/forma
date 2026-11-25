@@ -85,12 +85,12 @@ export function CheckoutAddress<T extends ShippingFields>({ form }: { form: UseF
     <label>Estado
       <input {...register('state')} readOnly aria-readonly="true" />
     </label>
-    <label>Calle y número exterior
+    <label className="span-2">Calle y número exterior
       <input {...register('street')} autoComplete="shipping address-line1" maxLength={200}
         aria-invalid={!!errors.street} aria-describedby={errors.street ? 'street-error' : undefined} />
       {errors.street && <span className="error" id="street-error">{errors.street.message}</span>}
     </label>
-    <label>Interior o referencias (opcional)
+    <label className="span-2">Interior o referencias (opcional)
       <input {...register('line2')} autoComplete="shipping address-line2" maxLength={200} />
     </label>
     <p className="span-2 muted">País de envío: México</p>

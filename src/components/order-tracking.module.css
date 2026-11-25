@@ -65,7 +65,7 @@
   margin-top: 3px;
   padding: 2px 9px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .step[data-state='complete'] .status {
@@ -87,7 +87,7 @@
   display: block;
   margin-top: 4px;
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .shippingDetails span { display: block; overflow-wrap: anywhere; }

@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: only light;
   --brand-primary: #327A70;
   --brand-charcoal: #1D2528;
   --brand-off-white: #F8F7F4;
@@ -24,5 +24,4 @@
   --ease-standard: cubic-bezier(.4, 0, .2, 1);
 }
 
-:root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
