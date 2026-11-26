@@ -8,6 +8,7 @@ import com.olvenio.cart.application.CartDtos.UpdateItemRequest;
 import com.olvenio.cart.application.CartService;
 import com.olvenio.shared.security.CurrentUser;
 import com.olvenio.shared.security.GuestSession;
+import com.olvenio.marketing.MarketingTracking;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,10 +35,12 @@ public class CartController {
 
     private final CartService carts;
     private final GuestSession guest;
+    private final MarketingTracking marketing;
 
-    public CartController(CartService carts, GuestSession guest) {
+    public CartController(CartService carts, GuestSession guest, MarketingTracking marketing) {
         this.carts = carts;
         this.guest = guest;
+        this.marketing = marketing;
     }
 
     @Operation(summary = "Get or create the requester's cart (guest: issues the guest cookie; user: merges the guest cart)")
@@ -63,10 +66,12 @@ public class CartController {
     }
 
     @PostMapping("/{id}/items")
-    public CartView addItem(@PathVariable UUID id, HttpServletRequest request,
+    public CartView addItem(@PathVariable UUID id, HttpServletRequest request, HttpServletResponse response,
                             @RequestHeader(value = CART_TOKEN_HEADER, required = false) String token,
                             @Valid @RequestBody AddItemRequest req) {
-        return carts.addItem(id, guest.resolve(token, request), req);
+        CartView cart = carts.addItem(id, guest.resolve(token, request), req);
+        marketing.cartAdded(request, response, cart, req.variantId(), req.quantity());
+        return cart;
     }
 
     @PatchMapping("/{id}/items/{itemId}")

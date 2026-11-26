@@ -2,7 +2,10 @@ package com.olvenio.catalog.api;
 
 import com.olvenio.catalog.application.CatalogDtos.ProductSummaryView;
 import com.olvenio.catalog.application.FavoritesService;
+import com.olvenio.marketing.MarketingTracking;
 import com.olvenio.shared.security.AuthUser;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -20,8 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class FavoritesController {
     private final FavoritesService favorites;
 
-    public FavoritesController(FavoritesService favorites) {
+    private final MarketingTracking marketing;
+
+    public FavoritesController(FavoritesService favorites, MarketingTracking marketing) {
         this.favorites = favorites;
+        this.marketing = marketing;
     }
 
     @GetMapping
@@ -30,8 +36,11 @@ public class FavoritesController {
     }
 
     @PutMapping("/{productId}")
-    public ProductSummaryView add(@AuthenticationPrincipal AuthUser user, @PathVariable UUID productId) {
-        return favorites.add(user.id(), productId);
+    public ProductSummaryView add(@AuthenticationPrincipal AuthUser user, @PathVariable UUID productId,
+                                  HttpServletRequest request, HttpServletResponse response) {
+        var addition = favorites.add(user.id(), productId);
+        if (addition.added()) marketing.wishlistAdded(request, response, addition.product());
+        return addition.product();
     }
 
     @DeleteMapping("/{productId}")

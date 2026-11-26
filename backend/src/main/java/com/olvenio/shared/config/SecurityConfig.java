@@ -32,6 +32,10 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
+import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -69,7 +73,10 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
-                .headers(h -> h.frameOptions(f -> f.deny()))
+                .headers(h -> h.frameOptions(f -> f.disable())
+                        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(
+                                new NegatedRequestMatcher(new AntPathRequestMatcher("/marketing/pixel", "GET")),
+                                new XFrameOptionsHeaderWriter())))
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((req, res, ex) -> writeProblem(res, objectMapper,
                                 HttpStatus.UNAUTHORIZED, "Unauthorized", "Authentication required"))
@@ -93,6 +100,9 @@ public class SecurityConfig {
                                 "/api/v1/auth/email/verification").authenticated()
                         // Guest-capable: ownership/token checks are enforced in the application layer.
                         .requestMatchers("/api/v1/carts/**", "/api/v1/checkout/**", "/api/v1/orders/**", "/api/v1/payments/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/marketing/pixel", "/marketing/pixel.js",
+                                "/api/v1/marketing/consent").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/marketing/consent", "/api/v1/marketing/attribution").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/mercadopago", "/api/v1/webhooks/stripe", "/api/v1/webhooks/paypal", "/api/v1/webhooks/conekta").permitAll()
                         .anyRequest().denyAll());
         return http.build();
