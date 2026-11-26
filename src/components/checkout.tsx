@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check } from 'lucide-react';
 import { customerSchema, type CheckoutValues } from '@/lib/validation';
 import { api } from '@/lib/api/client';
+import { marketing } from '@/lib/marketing/tracking';
 import { ApiError, errorMessage } from '@/lib/api/http';
 import { orderSchema, savedAddressSchema, savedAddressesSchema, type SavedAddress } from '@/lib/api/schemas';
 import { useShop } from '@/stores/shop';
@@ -53,8 +54,9 @@ async function persistAddress(data:CheckoutValues){const existing=matchSaved(sav
   await api.post('/me/addresses',savedAddressSchema,{label:'',recipientName:`${data.firstName} ${data.lastName}`.trim(),line1:data.street,line2:data.line2,neighborhood:data.neighborhood,city:data.city,state:data.state,postalCode:data.postalCode,country:'MX',phone:data.phone,makeDefault:true});
 }
 async function submit(data:CheckoutValues){setError('');if(!cart)return;const shouldSave=canSave&&saveDefault;const recipient=matchSaved(saved,data)?.recipientName||`${data.firstName} ${data.lastName}`.trim();try{
-  if(!attempt.current){const quote=await api.post('/checkout/quotes',orderSchema,{cartId:cart.id,customer:{email:data.email,firstName:data.firstName,lastName:data.lastName,phone:data.phone},shippingAddress:{recipientName:recipient,line1:data.street,line2:data.line2,neighborhood:data.neighborhood,city:data.city,state:data.state,postalCode:data.postalCode,country:'MX',phone:data.phone}});attempt.current={quoteId:quote.id,key:`checkout-${crypto.randomUUID()}`}}
-  const order=await api.post('/orders',orderSchema,{quoteId:attempt.current.quoteId},{'Idempotency-Key':attempt.current.key});
+  if(!attempt.current){const {data:quote,eventId}=await api.postWithMarketingReceipt('/checkout/quotes',orderSchema,{cartId:cart.id,customer:{email:data.email,firstName:data.firstName,lastName:data.lastName,phone:data.phone},shippingAddress:{recipientName:recipient,line1:data.street,line2:data.line2,neighborhood:data.neighborhood,city:data.city,state:data.state,postalCode:data.postalCode,country:'MX',phone:data.phone}});marketing.checkout(eventId, quote);attempt.current={quoteId:quote.id,key:`checkout-${crypto.randomUUID()}`}}
+  const {data:order,eventId}=await api.postWithMarketingReceipt('/orders',orderSchema,{quoteId:attempt.current.quoteId},{'Idempotency-Key':attempt.current.key});
+  marketing.order(eventId, order);
   setPlaced(true);
   // Saving the address is a convenience: it never blocks an order that already exists.
   if(shouldSave)await persistAddress(data).catch(()=>{});

@@ -21,10 +21,10 @@ async function csrfToken(refresh = false): Promise<string> {
   return (await request(`${BASE}/auth/csrf`, csrfSchema, { credentials: 'same-origin', cache: 'no-store' })).token;
 }
 
-async function call<S extends z.ZodType>(method: string, path: string, schema: S | null, body?: unknown, headers: Record<string, string> = {}): Promise<z.infer<S>> {
+async function call<S extends z.ZodType>(method: string, path: string, schema: S | null, body?: unknown, headers: Record<string, string> = {}, onResponse?: (headers: Headers) => void): Promise<z.infer<S>> {
   const send = async (refresh: boolean) =>
     request(`${BASE}${path}`, schema, {
-      method, body, credentials: 'same-origin', cache: 'no-store',
+      method, body, credentials: 'same-origin', cache: 'no-store', onResponse,
       headers: SAFE.has(method) ? headers : { ...headers, 'X-XSRF-TOKEN': await csrfToken(refresh) },
     });
   try {
@@ -36,9 +36,26 @@ async function call<S extends z.ZodType>(method: string, path: string, schema: S
   }
 }
 
+async function withMarketingReceipt<S extends z.ZodType>(
+  method: 'GET' | 'POST' | 'PUT', path: string, schema: S, body?: unknown, headers?: Record<string, string>,
+) {
+  let eventId: string | undefined;
+  const data = await call(method, path, schema, body, headers, responseHeaders => {
+    const id = responseHeaders.get('X-Olvenio-Marketing-Event');
+    if (id && /^[a-f0-9]{64}$/.test(id)) eventId = id;
+  });
+  return { data, eventId };
+}
+
 export const api = {
   get: <S extends z.ZodType>(path: string, schema: S) => call('GET', path, schema),
   post: <S extends z.ZodType>(path: string, schema: S | null, body?: unknown, headers?: Record<string, string>) => call('POST', path, schema, body, headers),
+  getWithMarketingReceipt: <S extends z.ZodType>(path: string, schema: S) =>
+    withMarketingReceipt('GET', path, schema),
+  postWithMarketingReceipt: <S extends z.ZodType>(path: string, schema: S, body?: unknown, headers?: Record<string, string>) =>
+    withMarketingReceipt('POST', path, schema, body, headers),
+  putWithMarketingReceipt: <S extends z.ZodType>(path: string, schema: S) =>
+    withMarketingReceipt('PUT', path, schema),
   patch: <S extends z.ZodType>(path: string, schema: S | null, body?: unknown) => call('PATCH', path, schema, body),
   put: <S extends z.ZodType>(path: string, schema: S | null, body?: unknown) => call('PUT', path, schema, body),
   delete: <S extends z.ZodType>(path: string, schema: S | null) => call('DELETE', path, schema),

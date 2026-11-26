@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import { MarketingRuntime } from '@/components/marketing-runtime';
 import { headers } from 'next/headers';
 import { Instrument_Serif, Manrope } from 'next/font/google';
 import { Shell } from '@/components/shell';
@@ -22,6 +24,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className={`${display.variable} ${body.variable}`}>
         <Shell>{children}</Shell>
+        <Suspense>
+          <MarketingRuntime frameOrigin={new URL(process.env.BACKEND_URL || 'http://localhost:8080').origin} />
+        </Suspense>
       </body>
     </html>
   );

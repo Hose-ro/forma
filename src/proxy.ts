@@ -6,6 +6,9 @@ export function proxy(request: NextRequest) {
   const dev = process.env.NODE_ENV !== 'production';
   // A visit to Mi cuenta can start through client navigation from any page.
   const google = process.env.GOOGLE_SIGN_IN_ENABLED === 'true';
+  const isAdmin = /^\/admin(?:\/|$)/.test(request.nextUrl.pathname);
+  const backendOrigin = new URL(process.env.BACKEND_URL || 'http://localhost:8080').origin;
+  const frames = [google && 'https://accounts.google.com/gsi/', !isAdmin && `${backendOrigin}/marketing/pixel`].filter(Boolean);
   const policy = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}${google ? ' https://accounts.google.com/gsi/client' : ''}`,
@@ -14,7 +17,7 @@ export function proxy(request: NextRequest) {
     "img-src 'self' https: data: blob:",
     "font-src 'self'",
     `connect-src 'self'${dev ? ' ws: wss:' : ''}${google ? ' https://accounts.google.com/gsi/ https://accounts.google.com/o/fedcm/' : ''}`,
-    ...(google ? ['frame-src https://accounts.google.com/gsi/'] : []),
+    ...(frames.length ? [`frame-src ${frames.join(' ')}`] : []),
     "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'",
   ].join('; ');
   const headers = new Headers(request.headers);

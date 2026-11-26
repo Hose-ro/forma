@@ -52,7 +52,7 @@ El servidor calcula el cargo; el checkout y la política de envíos muestran exa
 ## 4. Infraestructura de producción
 
 1. **Base de datos**: crea un proyecto Neon nuevo (no una rama del de staging). Crea el rol `olvenio_runtime` con una contraseña privada para `DATABASE_USERNAME`. Ejecuta `deploy/neon/01_bootstrap.sql`,
-   arranca la API una vez (Flyway aplica V1–V23) y luego ejecuta `deploy/neon/02_runtime_grants.sql` como propietario de las migraciones. Usa contraseñas nuevas.
+   arranca la API una vez (Flyway aplica V1–V24) y luego ejecuta `deploy/neon/02_runtime_grants.sql` como propietario de las migraciones. Usa contraseñas nuevas.
 2. **Respaldos**: activa la restauración a un punto en el tiempo de Neon (plan de pago, ≥ 7 días) y programa un `pg_dump` semanal a otro almacenamiento.
 3. **API**: en Render crea un Blueprint nuevo con ruta `deploy/render.production.yaml` y completa las variables marcadas.
    Usa un plan siempre encendido: una instancia dormida retrasa los webhooks de pago.
@@ -126,3 +126,7 @@ Estos puntos están implementados pero **no se han ejercitado contra servicios r
 - **Cambios.** Ajusta `APP_RETURN_DAYS` en Render y `NEXT_PUBLIC_RETURN_DAYS` en Vercel al plazo publicado. El cliente solicita el cambio o devolución en su pedido. Administración gestiona la respuesta desde la ficha y ejecuta cualquier reembolso con el procesador de pago.
 - **Facturas.** El titular de la cuenta puede solicitar el CFDI desde un pedido pagado. Emítelo en el facturador habitual y adjunta PDF y XML timbrado desde **Administración → Pedidos → Pedido → Solicitud de factura**. El sistema coteja los datos del XML y el total. El titular puede descargar ambos archivos desde su cuenta. El correo del negocio sigue disponible para clientes invitados.
 - **Guías de Envia.** Configura en Render `APP_ENVIA_TOKEN`, `APP_ENVIA_ORIGIN_JSON` y `APP_ENVIA_CARRIERS` (códigos separados por comas, máximo cuatro). Para el origen, incluye `name`, `street`, `district` cuando aplique, `city`, `state` con el código de Envia, `postalCode`, `country` con valor `MX` y `phone`. Ve a **Administración → Pedidos → Pedido → Envío**, captura el paquete, cotiza y selecciona un servicio. Genera e imprime la guía antes de marcar el pedido como enviado. Si hubo un timeout, concilia el intento en Envia antes de comprar otra guía. Los envíos manuales se mantienen disponibles desde la lista de pedidos. Usa primero `APP_ENVIA_ENVIRONMENT=sandbox` en staging y pasa a `production` con el token de producción en el perfil `prod`. [Documentación de Envia](https://docs.envia.com/docs/domestic-shipping-workflow)
+
+## Medición publicitaria de TikTok
+
+Consulta la [guía de TikTok](../docs/tiktok-tracking.md) para aplicar V24 y verificar Pixel y Events API antes de activar la medición.
