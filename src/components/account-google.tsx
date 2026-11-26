@@ -5,6 +5,7 @@ import Script from 'next/script';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { z } from 'zod';
 import { api } from '@/lib/api/client';
+import { marketing } from '@/lib/marketing/tracking';
 import { ApiError, errorMessage } from '@/lib/api/http';
 import { googleChallengeSchema, googleLoginSchema, googleRegistrationSchema, userSchema } from '@/lib/api/schemas';
 import { useShop } from '@/stores/shop';
@@ -142,12 +143,16 @@ export function GoogleAccountAccess({ onSignedIn, onBusyChange }: {
     event.preventDefault();
     if (!registration) return;
     const fields = new FormData(event.currentTarget);
-    void run(() => api.post('/auth/google/register', userSchema, {
-      ticket: registration.ticket,
-      firstName: String(fields.get('firstName')).trim(),
-      lastName: String(fields.get('lastName')).trim(),
-      termsAccepted: fields.has('termsAccepted'),
-    }));
+    void run(async () => {
+      const { data: user, eventId } = await api.postWithMarketingReceipt('/auth/google/register', userSchema, {
+        ticket: registration.ticket,
+        firstName: String(fields.get('firstName')).trim(),
+        lastName: String(fields.get('lastName')).trim(),
+        termsAccepted: fields.has('termsAccepted'),
+      });
+      marketing.register(eventId);
+      return user;
+    });
   }
 
   return <div className="account-google" aria-busy={busy}>

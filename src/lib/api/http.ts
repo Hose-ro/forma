@@ -26,7 +26,7 @@ export function errorMessage(e: unknown, fallback = 'Algo no salió como esperá
   return fallback;
 }
 
-type Options = { method?: string; body?: unknown; headers?: Record<string, string>; credentials?: RequestCredentials; cache?: RequestCache };
+type Options = { method?: string; body?: unknown; headers?: Record<string, string>; credentials?: RequestCredentials; cache?: RequestCache; onResponse?: (headers: Headers) => void };
 
 /** Performs the request, maps failures to ApiError and validates the JSON body against `schema`. */
 export async function request<S extends z.ZodType>(url: string, schema: S | null, opts: Options = {}): Promise<z.infer<S>> {
@@ -46,10 +46,14 @@ export async function request<S extends z.ZodType>(url: string, schema: S | null
     const problem = await res.json().catch(() => ({}));
     throw new ApiError(res.status, problem.title || res.statusText, problem.detail || '', Array.isArray(problem.errors) ? problem.errors : []);
   }
-  if (!schema || res.status === 204) return undefined as z.infer<S>;
+  if (!schema || res.status === 204) {
+    opts.onResponse?.(res.headers);
+    return undefined as z.infer<S>;
+  }
   const parsed = schema.safeParse(await res.json().catch(() => null));
   if (!parsed.success) {
     throw new ApiError(502, 'Unexpected response', 'La respuesta del servidor no tiene el formato esperado.');
   }
+  opts.onResponse?.(res.headers);
   return parsed.data;
 }

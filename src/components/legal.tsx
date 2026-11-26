@@ -4,8 +4,9 @@ import { THEME_STORAGE_KEY } from '@/lib/theme';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
+import { setMarketingConsent, useMarketingConsent } from '@/lib/marketing/tracking';
 import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from 'motion/react';
-import { ArrowUpRight, ChartColumn, Compass, Cookie, CreditCard, EyeOff, FileText, Globe, HardDrive, KeyRound, Lock, Mail, Megaphone, Monitor, PackageCheck, RotateCcw, Settings2, Share2, ShieldCheck, Type, UserRound, X, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, ChartColumn, Compass, Cookie, CreditCard, EyeOff, FileText, Globe, HardDrive, KeyRound, Lock, Mail, Monitor, PackageCheck, RotateCcw, Settings2, ShieldCheck, Type, UserRound, X, type LucideIcon } from 'lucide-react';
 import { Reveal } from './ui';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -26,7 +27,7 @@ const SECTIONS = [
 
 const SUMMARY: SummaryItem[] = [
   { icon: UserRound, title: 'Lo mínimo', text: 'Solo pedimos lo necesario para tu cuenta y para entregar un pedido.' },
-  { icon: ShieldCheck, title: 'Sin rastreo', text: 'No usamos cookies publicitarias ni herramientas de analítica de terceros.' },
+  { icon: ShieldCheck, title: 'Publicidad opcional', text: 'Tú decides si permites que midamos la eficacia de los anuncios de TikTok.' },
   { icon: Lock, title: 'Sin tarjetas', text: 'Los pagos los procesa la plataforma del método que elijas. Nunca vemos los datos de tu tarjeta ni de tu cuenta.' },
   { icon: KeyRound, title: 'Tú decides', text: 'Puedes acceder, corregir o eliminar tus datos cuando quieras.' },
 ];
@@ -240,7 +241,7 @@ export function PrivacyNotice({ googleEnabled = false }: { googleEnabled?: boole
             </Section>
 
             <Section id="datos" index={2} title={<>Qué datos <i>tratamos.</i></>}>
-              <p>Solo recabamos la información que tú nos proporcionas al crear una cuenta o completar un pedido:</p>
+              <p>Para gestionar tu cuenta y tus pedidos, tratamos los datos que nos proporcionas:</p>
               <div className="legal-data-grid">
                 {DATA.map((d, i) => (
                   <Reveal key={d.title} delay={i * 0.06} className="legal-data-card">
@@ -275,17 +276,16 @@ export function PrivacyNotice({ googleEnabled = false }: { googleEnabled?: boole
                 </div>
                 <div>
                   <h3>Finalidades secundarias</h3>
-                  <p className="legal-none">Ninguna.</p>
-                  <p className="muted">No enviamos publicidad, no creamos perfiles comerciales y no vendemos tu información.</p>
+                  <p>Si aceptas, medimos con TikTok si los anuncios generan visitas, búsquedas, registros o compras. Usamos identificadores publicitarios, eventos de la tienda y datos comerciales como artículos, cantidades e importes.</p>
+                  <p>El seguimiento es opcional. Puedes cambiar tu elección en el <Link className="legal-inline-link" href="/policies/cookies#gestionar">Aviso de cookies</Link>.</p>
                 </div>
               </div>
             </Section>
 
-            <Section id="cookies" index={4} title={<>Cookies, solo las <i>esenciales.</i></>}>
+            <Section id="cookies" index={4} title={<>Cookies y <i>preferencias.</i></>}>
               <p>
-                Usamos únicamente cookies técnicas, imprescindibles para que la tienda funcione. Son <em>HttpOnly</em> cuando es posible,
-                por lo que el código del navegador no puede leerlas. No hay cookies de analítica, publicidad ni de redes sociales, y las
-                tipografías se sirven desde nuestro propio dominio.
+                Las cookies técnicas mantienen la sesión, la bolsa y la seguridad de los formularios. Si aceptas la medición publicitaria,
+                podremos activar TikTok Pixel y compartir eventos con TikTok Events API.
               </p>
               {googleEnabled && <p>En Mi cuenta, Google Identity Services puede usar cookies propias para el acceso opcional con Google.</p>}
               <div className="legal-cookies" role="table" aria-label="Cookies que utiliza el sitio">
@@ -306,7 +306,7 @@ export function PrivacyNotice({ googleEnabled = false }: { googleEnabled?: boole
             </Section>
 
             <Section id="transferencias" index={5} title={<>Con quién los <i>compartimos.</i></>}>
-              <p>No vendemos ni rentamos tus datos. Solo los compartimos cuando es necesario para cumplir tu pedido o la ley:</p>
+              <p>No vendemos ni rentamos tus datos. Compartimos los datos necesarios para cumplir tu pedido o la ley y, con tu consentimiento, para medir anuncios.</p>
               <ul className="legal-list">
                 <li>
                   <strong>El procesador del método de pago que elijas</strong>: Mercado Pago, Stripe (tarjeta y OXXO), PayPal o Conekta
@@ -320,7 +320,7 @@ export function PrivacyNotice({ googleEnabled = false }: { googleEnabled?: boole
                 <li><strong>El proveedor de facturación</strong> recibe tus datos fiscales cuando solicitas un CFDI.</li>
                 <li><strong>Autoridades competentes</strong>, cuando exista un requerimiento fundado y motivado.</li>
               </ul>
-              <p className="muted">Estas transferencias no requieren tu consentimiento por ser necesarias para la relación que mantienes con nosotros.</p>
+              <p>Con tu autorización, compartimos con <strong>TikTok</strong> eventos de la tienda, identificadores de clic o de cookie, páginas públicas y datos comerciales. El píxel recibe los datos de conexión del navegador. Excluimos correo, teléfono, direcciones y datos de pago de la medición.</p>
             </Section>
 
             <Section id="derechos" index={6} title={<>Tus derechos <i>ARCO.</i></>}>
@@ -405,9 +405,8 @@ const COOKIE_SECTIONS = [
 ] as const;
 
 const COOKIE_SUMMARY: SummaryItem[] = [
-  { icon: Cookie, title: 'Solo esenciales', text: 'Tres cookies técnicas para tu sesión, tu bolsa y tus formularios.' },
-  { icon: EyeOff, title: 'Sin rastreo', text: 'Ni analítica, ni publicidad, ni píxeles de redes sociales.' },
-  { icon: HardDrive, title: 'Propias', text: 'Todas las establece Olvenio en su propio dominio.' },
+  { icon: Cookie, title: 'Cookies esenciales', text: 'Mantienen tu sesión, tu bolsa y tus formularios.' },
+  { icon: EyeOff, title: 'Publicidad opcional', text: 'El píxel de TikTok se activa si lo autorizas.' },
   { icon: Settings2, title: 'Bajo tu control', text: 'Puedes borrarlas cuando quieras desde tu navegador.' },
 ];
 
@@ -425,8 +424,6 @@ const STORAGE = [
 
 const NOT_USED: { icon: LucideIcon; title: string; text: string }[] = [
   { icon: ChartColumn, title: 'Analítica', text: 'No medimos tu navegación con Google Analytics ni herramientas similares.' },
-  { icon: Megaphone, title: 'Publicidad', text: 'No hay cookies de anuncios ni de remarketing.' },
-  { icon: Share2, title: 'Redes sociales', text: 'No cargamos botones ni píxeles de redes sociales.' },
   { icon: Type, title: 'Servicios externos', text: 'Las tipografías e imágenes se sirven desde nuestro dominio.' },
 ];
 
@@ -454,13 +451,12 @@ export function CookiePolicy({ googleEnabled = false }: { googleEnabled?: boolea
         </p>
         <p>
           Algunas son <strong>técnicas</strong>, imprescindibles para que el sitio funcione, y otras sirven para analizar tu
-          comportamiento o mostrarte publicidad. En Olvenio solo usamos las primeras, por lo que no necesitamos pedirte consentimiento
-          para instalarlas, pero sí explicarte cuáles son.
+          comportamiento o medir publicidad. En Olvenio, la medición publicitaria requiere tu consentimiento.
         </p>
       </Section>
 
       <Section id="cookies-usadas" index={2} title={<>Las cookies que <i>usamos.</i></>}>
-        <p>Estas son las cookies que establece Olvenio.</p>
+        <p>Estas son las cookies que la tienda usa para sus funciones esenciales.</p>
         {googleEnabled && <p>En Mi cuenta, el botón opcional de Google carga Google Identity Services, que puede usar cookies propias para autenticarte.</p>}
         <div className="cookie-cards">
           {COOKIE_DETAILS.map((c, i) => (
@@ -494,7 +490,7 @@ export function CookiePolicy({ googleEnabled = false }: { googleEnabled?: boolea
 
       <Section id="almacenamiento" index={3} title={<>Almacenamiento <i>local.</i></>}>
         <p>
-          Además de cookies, guardamos preferencias en el almacenamiento local de tu navegador. No contienen datos personales y
+          También guardamos preferencias técnicas en el almacenamiento local de tu navegador. Estas preferencias
           nunca se envían a nuestros servidores.
         </p>
         <div className="legal-cookies" role="table" aria-label="Datos en almacenamiento local">
@@ -534,7 +530,16 @@ export function CookiePolicy({ googleEnabled = false }: { googleEnabled?: boolea
         </div>
       </Section>
 
-      <Section id="terceros" index={5} title={<>Sitios de <i>terceros.</i></>}>
+      <Section id="terceros" index={5} title={<>Servicios de <i>terceros.</i></>}>
+        <p>
+          Si aceptas la medición publicitaria, TikTok Pixel puede usar cookies como <code>_ttp</code> y los identificadores de sesión <code>ttcsid</code>.
+          Olvenio también puede usar el identificador de clic <code>ttclid</code>. Los eventos publicitarios se conservan en la tienda hasta 30 días.
+          Tu autorización vence a los 180 días. Revocarla detiene la medición futura y elimina los identificadores publicitarios guardados por Olvenio.
+        </p>
+        <p>
+          Guardamos tu decisión en las cookies <code>OLVENIO_MARKETING</code> o <code>OLVENIO_MARKETING_DENIED</code>.
+          El navegador también guarda una señal de preferencia y, si se mide una compra, un identificador de evento temporal para evitar duplicados.
+        </p>
         <div className="cookie-third">
           <CreditCard size={22} strokeWidth={1.5} aria-hidden="true" />
           <p>
@@ -567,8 +572,7 @@ export function CookiePolicy({ googleEnabled = false }: { googleEnabled?: boolea
 
       <Section id="cambios-cookies" index={7} title={<>Cambios a este <i>aviso.</i></>}>
         <p>
-          Si en el futuro incorporamos cookies distintas de las técnicas, actualizaremos este aviso y te pediremos tu consentimiento
-          antes de instalarlas. Consulta también el{' '}
+          Si cambia la finalidad de la medición publicitaria, actualizaremos este aviso. Consulta también el{' '}
           <Link className="legal-inline-link" href="/policies/privacy">Aviso de privacidad</Link>.
         </p>
         <div className="legal-closing">
@@ -583,7 +587,7 @@ export function CookiePolicy({ googleEnabled = false }: { googleEnabled?: boolea
   );
 }
 
-/* ---------- Banner informativo ---------- */
+/* ---------- Preferencias de cookies ---------- */
 
 const NOTICE_KEY = 'olvenio-cookie-notice-v1';
 const NOTICE_EVENT = 'olvenio:cookie-notice';
@@ -592,6 +596,9 @@ export function CookieNotice() {
   const reduced = useReducedMotion();
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const { enabled, granted, decided, pendingRevocation } = useMarketingConsent();
 
   useEffect(() => {
     let seen = false;
@@ -602,10 +609,30 @@ export function CookieNotice() {
     return () => { window.clearTimeout(timer); window.removeEventListener(NOTICE_EVENT, reopen); };
   }, []);
 
+  useEffect(() => {
+    if (!enabled || decided) return;
+    const timer = window.setTimeout(() => setOpen(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, [enabled, decided]);
+
   const dismiss = () => {
     try { localStorage.setItem(NOTICE_KEY, 'seen'); } catch { /* storage unavailable */ }
     setOpen(false);
   };
+
+  async function choose(allowed: boolean) {
+    setSaving(true);
+    setError('');
+    try {
+      await setMarketingConsent(allowed);
+      dismiss();
+    } catch {
+      setError(allowed ? 'No pudimos guardar tu autorización. Inténtalo de nuevo.'
+        : 'El seguimiento se detuvo en este navegador. La revocación está pendiente de confirmación del servidor.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -629,14 +656,22 @@ export function CookieNotice() {
             {'✳︎'}
           </motion.span>
           <div className="cookie-notice-body">
-            <h2>Solo cookies <i>esenciales.</i></h2>
-            <p>Usamos cookies técnicas para mantener tu sesión y tu bolsa. Sin publicidad ni rastreo.</p>
+            <h2>Preferencias de <i>cookies.</i></h2>
+            <p>{enabled
+              ? 'Las cookies esenciales mantienen tu sesión y tu bolsa. Puedes permitir la medición de anuncios de TikTok.'
+              : 'Usamos cookies técnicas para mantener tu sesión y tu bolsa.'}</p>
             <div className="cookie-notice-actions">
-              <button type="button" className="button" onClick={dismiss}>Entendido</button>
+              {enabled ? <>
+                {!granted && !pendingRevocation && <button type="button" className="button" disabled={saving}
+                  onClick={() => void choose(true)}>Aceptar publicidad</button>}
+                <button type="button" className="button" disabled={saving}
+                  onClick={() => void choose(false)}>{pendingRevocation ? 'Reintentar revocación' : granted ? 'Revocar publicidad' : 'Rechazar publicidad'}</button>
+              </> : <button type="button" className="button" onClick={dismiss}>Entendido</button>}
               {path !== '/policies/cookies' && (
                 <Link href="/policies/cookies" className="text-link" onClick={dismiss}>Ver detalles <ArrowUpRight size={14} /></Link>
               )}
             </div>
+            {error && <p className="error" role="status">{error}</p>}
           </div>
           <button type="button" className="cookie-notice-close" aria-label="Cerrar aviso de cookies" onClick={dismiss}><X size={16} /></button>
         </motion.aside>
@@ -658,7 +693,7 @@ function ShowCookieNotice() {
       }}
     >
       <RotateCcw size={15} aria-hidden="true" />
-      {shown ? 'Aviso mostrado abajo' : 'Volver a mostrar el aviso de cookies'}
+      {shown ? 'Preferencias mostradas abajo' : 'Configurar cookies'}
     </button>
   );
 }
