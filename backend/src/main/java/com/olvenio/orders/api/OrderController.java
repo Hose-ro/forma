@@ -8,9 +8,11 @@ import com.olvenio.orders.application.OrderQueryService;
 import com.olvenio.shared.api.PageResponse;
 import com.olvenio.shared.security.AuthUser;
 import com.olvenio.shared.security.GuestSession;
+import com.olvenio.marketing.MarketingTracking;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,10 +27,12 @@ public class OrderController {
 
     private final OrderQueryService orders;
     private final GuestSession guest;
+    private final MarketingTracking marketing;
 
-    public OrderController(OrderQueryService orders, GuestSession guest) {
+    public OrderController(OrderQueryService orders, GuestSession guest, MarketingTracking marketing) {
         this.orders = orders;
         this.guest = guest;
+        this.marketing = marketing;
     }
 
     @Operation(summary = "Orders placed as a guest from this browser (guest cookie)")
@@ -41,9 +45,11 @@ public class OrderController {
 
     @Operation(summary = "Get an order/quote (owner session, admin, guest cookie or X-Order-Token)")
     @GetMapping("/api/v1/orders/{id}")
-    public OrderView get(@PathVariable UUID id, HttpServletRequest request,
+    public OrderView get(@PathVariable UUID id, HttpServletRequest request, HttpServletResponse response,
                          @RequestHeader(value = ORDER_TOKEN_HEADER, required = false) String token) {
-        return orders.get(id, guest.resolve(token, request));
+        OrderView order = orders.get(id, guest.resolve(token, request));
+        marketing.authorizedPurchase(request, response, order);
+        return order;
     }
 
     @Operation(summary = "Orders of the logged-in customer")

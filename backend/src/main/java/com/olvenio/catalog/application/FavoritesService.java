@@ -25,15 +25,17 @@ public class FavoritesService {
         return products.findFavorites(userId).stream().map(CatalogMapper::summary).toList();
     }
 
+    public record Addition(ProductSummaryView product, boolean added) {}
+
     @Transactional
-    public ProductSummaryView add(UUID userId, UUID productId) {
+    public Addition add(UUID userId, UUID productId) {
         var product = products.findByIdAndStatus(productId, ProductStatus.ACTIVE)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
-        db.update("""
+        int added = db.update("""
                 INSERT INTO product_favorites (user_id, product_id) VALUES (?, ?)
                 ON CONFLICT (user_id, product_id) DO NOTHING
                 """, userId, productId);
-        return CatalogMapper.summary(product);
+        return new Addition(CatalogMapper.summary(product), added > 0);
     }
 
     @Transactional

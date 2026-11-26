@@ -10,6 +10,7 @@ import com.olvenio.checkout.application.CheckoutService;
 import com.olvenio.orders.application.OrderDtos.OrderView;
 import com.olvenio.shared.security.CurrentUser;
 import com.olvenio.shared.security.GuestSession;
+import com.olvenio.marketing.MarketingTracking;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,10 +30,12 @@ public class CheckoutController {
 
     private final CheckoutService checkout;
     private final GuestSession guest;
+    private final MarketingTracking marketing;
 
-    public CheckoutController(CheckoutService checkout, GuestSession guest) {
+    public CheckoutController(CheckoutService checkout, GuestSession guest, MarketingTracking marketing) {
         this.checkout = checkout;
         this.guest = guest;
+        this.marketing = marketing;
     }
 
     @Operation(summary = "Create a priced, expiring quote from a cart. Guest quotes are bound to the guest cookie.")
@@ -43,15 +46,19 @@ public class CheckoutController {
                            @RequestHeader(value = CART_TOKEN_HEADER, required = false) String cartToken) {
         String guestToken = CurrentUser.id().isPresent() ? guest.token(request).orElse(null)
                 : cartToken != null && !cartToken.isBlank() ? cartToken : guest.ensure(request, response);
-        return checkout.createQuote(req, guest.resolve(cartToken, request), guestToken);
+        OrderView quote = checkout.createQuote(req, guest.resolve(cartToken, request), guestToken);
+        marketing.checkoutStarted(request, response, quote);
+        return quote;
     }
 
     @Operation(summary = "Confirm a quote as an order (PENDING_PAYMENT). Requires Idempotency-Key; 201 new, 200 replay.")
     @PostMapping("/api/v1/orders")
     public ResponseEntity<OrderView> place(@Valid @RequestBody PlaceOrderRequest req, HttpServletRequest request,
+                                           HttpServletResponse response,
                                            @RequestHeader(value = IDEMPOTENCY_HEADER, required = false) String key,
                                            @RequestHeader(value = ORDER_TOKEN_HEADER, required = false) String token) {
         var result = checkout.placeOrder(req.quoteId(), key, guest.resolve(token, request));
+        if (result.created()) marketing.orderPlaced(request, response, result.order());
         return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK).body(result.order());
     }
 }

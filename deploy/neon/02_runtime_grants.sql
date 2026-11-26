@@ -1,11 +1,12 @@
--- Run as the Flyway/migration owner after Flyway applies the migrations through V23.
+-- Run as the Flyway/migration owner after Flyway applies the migrations through V24.
 BEGIN;
 GRANT SELECT, INSERT, UPDATE ON TABLE users, orders TO olvenio_runtime;
 REVOKE DELETE, TRUNCATE ON TABLE users, orders FROM olvenio_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
     addresses, categories, products, product_variants, product_images,
     carts, cart_items, order_items, order_addresses,
-    payments, payment_attempts, payment_resources, order_emails, account_tokens, account_emails
+    payments, payment_attempts, payment_resources, order_emails, account_tokens, account_emails,
+    marketing_consents, marketing_events
 TO olvenio_runtime;
 GRANT SELECT, INSERT ON TABLE audit_logs, order_events, payment_events TO olvenio_runtime;
 REVOKE UPDATE, DELETE, TRUNCATE ON TABLE audit_logs, order_events, payment_events FROM olvenio_runtime;

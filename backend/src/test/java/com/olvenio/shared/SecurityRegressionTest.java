@@ -42,6 +42,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest({AuthController.class, CartController.class, CheckoutController.class})
 @Import({SecurityConfig.class, SecurityRegressionTest.Props.class})
 class SecurityRegressionTest {
+    @MockitoBean com.olvenio.marketing.MarketingTracking marketing;
     @TestConfiguration @EnableConfigurationProperties(AppProperties.class) static class Props {}
     @Autowired MockMvc mvc;
     @Autowired PasswordEncoder encoder;
