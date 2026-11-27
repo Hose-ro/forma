@@ -10,6 +10,7 @@ import com.olvenio.identity.application.IdentityDtos.GoogleRegistration;
 import com.olvenio.identity.application.IdentityDtos.LoginRequest;
 import com.olvenio.identity.application.IdentityDtos.RegisterRequest;
 import com.olvenio.identity.application.IdentityDtos.UserView;
+import com.olvenio.marketing.MarketingTracking;
 import com.olvenio.shared.domain.RateLimitException;
 import com.olvenio.shared.security.AuthUser;
 import com.olvenio.shared.security.RequestLimits;
@@ -58,12 +59,14 @@ public class AuthController {
     private final com.olvenio.identity.application.AccountRecoveryService recovery;
     private final GoogleIdentityVerifier google;
     private final EmailRegistrationService registration;
+    private final MarketingTracking marketing;
 
     public AuthController(AccountService accounts, AuthenticationManager authenticationManager,
                           SecurityContextRepository contextRepository, CsrfTokenRepository csrfTokenRepository,
                           RequestLimits limits,
                           com.olvenio.identity.application.AccountRecoveryService recovery,
-                          GoogleIdentityVerifier google, EmailRegistrationService registration) {
+                          GoogleIdentityVerifier google, EmailRegistrationService registration,
+                          MarketingTracking marketing) {
         this.recovery = recovery;
         this.google = google;
         this.accounts = accounts;
@@ -72,6 +75,7 @@ public class AuthController {
         this.csrfTokenRepository = csrfTokenRepository;
         this.limits = limits;
         this.registration = registration;
+        this.marketing = marketing;
     }
 
     @Operation(summary = "Issue CSRF token (also set as XSRF-TOKEN cookie). Send it as X-XSRF-TOKEN on unsafe requests.")
@@ -105,6 +109,7 @@ public class AuthController {
         requireAnonymous(user);
         UserView created = registration.verify(req.challengeId(), req.code());
         startCustomerSession(created, request, response);
+        marketing.registered(request, response, created.id());
         return created;
     }
 
@@ -225,6 +230,7 @@ public class AuthController {
         }
         UserView registered = accounts.googleRegister(signup.identity(), req);
         startCustomerSession(registered, request, response);
+        marketing.registered(request, response, registered.id());
         return registered;
     }
 

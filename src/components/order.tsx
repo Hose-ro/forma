@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowUpRight, Check } from 'lucide-react';
 import { api } from '@/lib/api/client';
+import { marketing, useMarketingConsent } from '@/lib/marketing/tracking';
 import { ApiError } from '@/lib/api/http';
 import { orderSchema } from '@/lib/api/schemas';
 import { LIVE } from '@/lib/business';
@@ -25,13 +26,16 @@ export function OrderDetail({ id, confirmation = false, showTracking = false }: 
   const [order, setOrder] = useState<Order | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'missing' | 'error'>('loading');
   const [attempt, setAttempt] = useState(0);
+  const [purchaseReceipt, setPurchaseReceipt] = useState<string>();
+  const { granted } = useMarketingConsent();
   const refreshPayment = useCallback(() => setAttempt(n => n + 1), []);
 
   useEffect(() => {
     let active = true;
-    api.get(`/orders/${encodeURIComponent(id)}`, orderSchema).then(result => {
+    api.getWithMarketingReceipt(`/orders/${encodeURIComponent(id)}`, orderSchema).then(({ data, eventId }) => {
       if (!active) return;
-      setOrder(result);
+      setOrder(data);
+      setPurchaseReceipt(eventId);
       setState('ready');
     }, error => {
       if (!active) return;
@@ -39,6 +43,10 @@ export function OrderDetail({ id, confirmation = false, showTracking = false }: 
     });
     return () => { active = false; };
   }, [id, attempt]);
+
+  useEffect(() => {
+    if (granted && order?.id === id) marketing.purchase(purchaseReceipt, order);
+  }, [granted, id, order, purchaseReceipt]);
 
   if (state === 'loading') return <div className="page skeleton" />;
   if (state === 'error') return <div className="page">

@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { api } from '@/lib/api/client';
+import { marketing } from '@/lib/marketing/tracking';
 import { ApiError, errorMessage } from '@/lib/api/http';
 import { cartSchema, favoritesSchema, productSummarySchema, userSchema } from '@/lib/api/schemas';
 import { fromSummary } from '@/lib/product-summary';
@@ -60,6 +61,15 @@ export const useShop = create<ShopState>()(persist((set, get) => {
       return false;
     }
   }
+  async function addToCart(cart: Cart, variantId: string, quantity: number) {
+    const { data, eventId } = await api.postWithMarketingReceipt(
+      `/carts/${cart.id}/items`, cartSchema, { variantId, quantity },
+    );
+    const line = data.items.find(item => item.variantId === variantId);
+    if (line) marketing.cart(eventId, data.currency, variantId, line.unitPrice, quantity);
+    return data;
+  }
+
   /** After the identity changes, the server decides which cart applies (and merges the guest cart on login). */
   async function syncAfterAuth(user: User | null) {
     setSession(user);
@@ -112,7 +122,10 @@ export const useShop = create<ShopState>()(persist((set, get) => {
       try {
         const product = favorites.has(productId)
           ? await api.delete(path, null).then(() => null)
-          : fromSummary(await api.put(path, productSummarySchema));
+          : await api.putWithMarketingReceipt(path, productSummarySchema).then(({ data, eventId }) => {
+            marketing.wishlist(eventId, data.defaultVariantId);
+            return fromSummary(data);
+          });
         if (version !== sessionVersion) return;
         set(state => {
           const updated = new Map(state.favorites);
@@ -138,7 +151,7 @@ export const useShop = create<ShopState>()(persist((set, get) => {
       }
     },
     async add(variantId, quantity = 1) {
-      const ok = await mutate(cart => api.post(`/carts/${cart.id}/items`, cartSchema, { variantId, quantity }));
+      const ok = await mutate(cart => addToCart(cart, variantId, quantity));
       set({ drawer: true });
       return ok;
     },
@@ -147,7 +160,7 @@ export const useShop = create<ShopState>()(persist((set, get) => {
       const line = cart.items.find(item => item.variantId === variantId);
       return line
         ? api.patch(`/carts/${cart.id}/items/${line.id}`, cartSchema, { quantity })
-        : api.post(`/carts/${cart.id}/items`, cartSchema, { variantId, quantity });
+        : addToCart(cart, variantId, quantity);
     }),
     async quantity(itemId, quantity) {
       await mutate(cart => api.patch(`/carts/${cart.id}/items/${itemId}`, cartSchema, { quantity }));

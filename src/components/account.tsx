@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowUpRight, CheckCircle2, Heart, Mail, Package } from 'lucide-react';
 import { api } from '@/lib/api/client';
+import { marketing } from '@/lib/marketing/tracking';
 import { ApiError, errorMessage } from '@/lib/api/http';
 import { categoriesSchema, orderPageSchema, registrationChallengeSchema, userSchema } from '@/lib/api/schemas';
 import { LIVE } from '@/lib/business';
@@ -134,7 +135,8 @@ function AccountForm({ googleEnabled }: { googleEnabled: boolean }) {
     setNotice('');
     setBusy(true);
     try {
-      const user = await api.post('/auth/register/verify', userSchema, { challengeId: registration.challengeId, code });
+      const { data: user, eventId } = await api.postWithMarketingReceipt('/auth/register/verify', userSchema, { challengeId: registration.challengeId, code });
+      marketing.register(eventId);
       await syncAfterAuth(user);
       finishSignIn();
     } catch (err) {
