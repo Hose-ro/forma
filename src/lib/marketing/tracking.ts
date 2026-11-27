@@ -49,7 +49,7 @@ function storefront() {
 function trackable() {
   if (!path) return false;
   return !!publicPage(path) || /^\/(account\/orders|checkout\/confirmation)\/[a-f0-9-]{36}$/.test(path)
-    || /^\/checkout\/(success|pending|failure)$/.test(path);
+    || /^\/checkout\/(success|pending|failure|paypal)$/.test(path);
 }
 
 function update(next: Status) {

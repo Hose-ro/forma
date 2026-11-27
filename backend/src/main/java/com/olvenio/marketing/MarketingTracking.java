@@ -95,7 +95,9 @@ public class MarketingTracking {
 
     private static boolean isOrderPage(String path, UUID orderId) {
         return ("/checkout/confirmation/" + orderId).equals(path) || ("/account/orders/" + orderId).equals(path)
-                || "/checkout/success".equals(path) || "/checkout/pending".equals(path) || "/checkout/failure".equals(path);
+                || "/checkout/success".equals(path) || "/checkout/pending".equals(path) || "/checkout/failure".equals(path)
+                // PayPal returns here and captures the payment on this page.
+                || "/checkout/paypal".equals(path);
     }
 
     private void capture(String name, HttpServletRequest request, HttpServletResponse response,

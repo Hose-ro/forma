@@ -80,6 +80,11 @@ class MarketingPersistenceTest {
         var purchaseReply = new MockHttpServletResponse();
         marketing.authorizedPurchase(purchasePage, purchaseReply, order(orderId, OrderStatus.PAID, "APPROVED"));
         assertThat(purchaseReply.getHeader(MarketingTracking.EVENT_HEADER)).isEqualTo(storedId);
+        var paypalReturn = request("/checkout/paypal?orderId=" + orderId + "&paymentId=" + paymentId, false);
+        paypalReturn.setCookies(request.getCookies());
+        var paypalReply = new MockHttpServletResponse();
+        marketing.authorizedPurchase(paypalReturn, paypalReply, order(orderId, OrderStatus.PAID, "APPROVED"));
+        assertThat(paypalReply.getHeader(MarketingTracking.EVENT_HEADER)).isEqualTo(storedId);
         assertThat(db.queryForObject("SELECT page_url FROM marketing_events WHERE event_id=?", String.class, storedId))
                 .isEqualTo("https://store.example.test/checkout");
 
